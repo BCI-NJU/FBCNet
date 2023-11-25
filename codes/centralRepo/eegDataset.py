@@ -65,6 +65,8 @@ class eegDataset(Dataset):
         
         self.labels = []
         self.data = []
+        self.tongue_data = []
+        self.tongue_labels = []
         self.dataPath = dataPath
         self.dataLabelsPath = dataLabelsPath
         self.preloadData = preloadData
@@ -73,9 +75,13 @@ class eegDataset(Dataset):
         # Load the labels file
         with open(self.dataLabelsPath, "r") as f:
             eegReader = csv.reader(f, delimiter = ',')
+            # 单独处理标签为舌头的数据
             for row in eegReader:
-                self.labels.append(row)
-            
+                if row[2] != '3':
+                    self.labels.append(row)
+                else: 
+                    self.tongue_labels.append(row)
+
             # remove the first header row
             del self.labels[0]
         
@@ -92,6 +98,15 @@ class eegDataset(Dataset):
                         d= self.transform(d)
                     self.data.append(d)
 
+    def getTongueData(self):
+        for i, trial in enumerate(self.tongue_labels):
+            with open(os.path.join(self.dataPath,trial[1]), 'rb') as fp:
+                d = pickle.load(fp)
+                if self.transform:
+                    d= self.transform(d)
+                self.tongue_data.append(d)
+        return self.tongue_data
+        
     def __len__(self):
         return len(self.labels)
     

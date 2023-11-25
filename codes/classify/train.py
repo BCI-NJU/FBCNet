@@ -83,7 +83,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     elif datasetId == 0:
         config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
-                                    'nClass': 4, 'doWeightNorm': True}
+                                    'nClass': 3, 'doWeightNorm': True}
     
     # Training related details    
     config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
@@ -101,8 +101,9 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     config['kFold'] = 1
     config['data'] = 'raw'
     config['subTorun'] = subTorun
-    config['trainDataToUse'] = 1    # How much data to use for training
-    config['validationSet'] = 0.2   # how much of the training data will be used a validation set
+    config['trainDataToUse'] = 0.8    # How much data to use for training
+    config['validationSet'] = 0.2  # how much of the training data will be used a validation set
+    config['testDataToUse'] = 0.2
 
     # network initialization details:
     config['loadNetInitState'] = True
@@ -133,7 +134,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     # Network initialization:
     config['pathNetInitState'] = os.path.join(masterPath, 'netInitModels', config['pathNetInitState']+'.pth')
     # check if the file exists else raise a flag
-    config['netInitStateExists'] = os.path.isfile(config['pathNetInitState'])
+    config['netInitStateExists'] =  False # os.path.isfile(config['pathNetInitState'])
 
     # Path to save the trained model
     config['pathModel'] = os.path.join(masterPath, 'netModels')
@@ -189,6 +190,8 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
             transform = transforms.__dict__[list(config['transformArguments'].keys())[0]](**config['transformArguments'][list(config['transformArguments'].keys())[0]])
     else:
         transform = None
+    
+    print(transform)
 
     #%% check and Load the data
     print('Data loading in progress')
@@ -239,7 +242,85 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     print("ALL CONFIG COMPLETED\n " + "*" * 30)
     return config, data, net
 
+def spiltDataSet(trainDataToUse, testDataToUse, validationSet, data):
+    '''
+    去掉标签为tongue的数据
+    把T和E数据集合并,并取80%用于训练, 20%用于测试
+    各subject分层采样
+    将测试集存为.npy文件
+    Return:
+    trainData: torch.DataSet类型
+    valData: torch.DataSet类型
+    '''
+
+    subs = sorted(set([d[3] for d in data.labels]))
+
+    train_data = []
+    val_data = []
+    test_data = []
+
+    # 每个个体分层采样
+    for iSub, sub in enumerate(subs):
+        
+        # extract subject data
+        subIdx = [i for i, x in enumerate(data.labels) if x[3] in sub]
+        subData = copy.deepcopy(data)
+        subData.createPartialDataset(subIdx, loadNonLoadedData = True)
+        
+        trainData = copy.deepcopy(subData)
+        del subData
+        testData = copy.deepcopy(trainData)
+        
+        # 训练集0.8，测试集0.2
+        # print(len(trainData))
+        # print(math.ceil(len(trainData)*config['trainDataToUse']))
+        trainData.createPartialDataset(list(range(0, math.ceil(len(trainData)*config['trainDataToUse']))))
+        testData.createPartialDataset(list( range( 
+            math.ceil(len(testData)*(1-config['testDataToUse'])) , len(testData))))
+
+        # 训练集再分，训练集0.8，验证集0.2
+        valData = copy.deepcopy(trainData)
+        valData.createPartialDataset(list( range( 
+            math.ceil(len(trainData)*(1-config['validationSet'])) , len(trainData))))
+        trainData.createPartialDataset(list(range(0, math.ceil(len(trainData)*(1-config['validationSet'])))))
+        
+        train_data.append(trainData)
+        val_data.append(valData)
+        test_data.append(testData)
+
+    # 每个个体分层采样的数据合在一起
+    for i in range(1, len(train_data)):
+        train_data[0].combineDataset(train_data[i])
+        val_data[0].combineDataset(val_data[i])
+        test_data[0].combineDataset(test_data[i])
+
+    # 得到最后的训练集、验证集和测试集
+    trainData = copy.deepcopy(train_data[0])
+    valData = copy.deepcopy(val_data[0])
+    testData = copy.deepcopy(test_data[0])
+    del train_data, val_data, test_data
+
+    # 测试集要加上tongue标签的数据
+    finalTestData = data.getTongueData()
+    for sample in testData:
+        finalTestData.append(sample)
     
+    # print(len(trainData), len(valData), len(testData), len(finalTestData))
+    # print(finalTestData[0])
+    # print(finalTestData[-1])
+    
+    # 将测试集存成.npy文件
+    if not os.path.exists('TestData.npy'):
+        # 将 PyTorch 张量转换为 NumPy 数组
+        numpy_data_list = [{'data': item['data'].numpy(), 'label': item['label']} for item in finalTestData]
+        # 保存 NumPy 数组
+        np.save('TestData.npy', numpy_data_list)
+
+    del finalTestData
+
+    loaded_data_list = np.load('TestData.npy', allow_pickle=True)
+
+    return trainData, valData
 
 def train(config, data, initNet):
     '''
@@ -257,19 +338,8 @@ def train(config, data, initNet):
     
     start = time.time()
     
-    trainData = copy.deepcopy(data)
-
-    # print("")
-    # print(testData[0]['data'].shape)
-    
-    # extract the desired amount of train data: 
-    trainData.createPartialDataset(list(range(0, math.ceil(len(trainData)*config['trainDataToUse']))))
-
-    # isolate the train and validation set
-    valData = copy.deepcopy(trainData)
-    valData.createPartialDataset(list( range( 
-        math.ceil(len(trainData)*(1-config['validationSet'])) , len(trainData))))
-    trainData.createPartialDataset(list(range(0, math.ceil(len(trainData)*(1-config['validationSet'])))))
+    trainData, valData = spiltDataSet(config['trainDataToUse'], config['testDataToUse'], \
+                                                config['validationSet'], data)
     
     # D:\codes\BCI-VR\FBCNet\codes\netModels\2023-11-20--20-41-312\sub0\FBCNet_0
     model = baseModel(net=initNet, resultsSavePath=config['resultsOutPath'], modelSavePath=config['modelsOutPath'], batchSize= config['batchSize'], nGPU = nGPU)
@@ -315,6 +385,5 @@ if __name__ == '__main__':
 
     else:
         subTorun = None
-    
     config, data, net = config(datasetId, network, nGPU, subTorun)
     train(config, data, net)
