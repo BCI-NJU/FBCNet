@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 import os
 import pickle 
 import csv
-
+import numpy as np
 
 #%%
 class eegDataset(Dataset):
@@ -72,31 +72,42 @@ class eegDataset(Dataset):
         self.preloadData = preloadData
         self.transform = transform
         
-        # Load the labels file
-        with open(self.dataLabelsPath, "r") as f:
-            eegReader = csv.reader(f, delimiter = ',')
-            # 单独处理标签为舌头的数据
-            for row in eegReader:
-                if row[2] != '3':
-                    self.labels.append(row)
-                else: 
-                    self.tongue_labels.append(row)
+        if self.dataLabelsPath == None:
+            # load testData here
+            testData = np.load(self.dataPath, allow_pickle=True) # load TestData.npy
+            # print(testData)
+            self.data = testData
+            self.preloadData = True
+            self.labels = [int(x['label']) for x in self.data]
+            print("Test data eegDataset finished!")
+        else:
+            # The original codes: load train data
 
-            # remove the first header row
-            del self.labels[0]
-        
-        # convert the labels to int
-        for i, label in enumerate(self.labels):
-            self.labels[i][2] = int(self.labels[i][2])
-        
-        # if preload data is true then load all the data and apply the transforms as well
-        if self.preloadData:
-            for i, trial in enumerate(self.labels):
-                with open(os.path.join(self.dataPath,trial[1]), 'rb') as fp:
-                    d = pickle.load(fp)
-                    if self.transform:
-                        d= self.transform(d)
-                    self.data.append(d)
+            # Load the labels file
+            with open(self.dataLabelsPath, "r") as f:
+                eegReader = csv.reader(f, delimiter = ',')
+                # 单独处理标签为舌头的数据
+                for row in eegReader:
+                    if row[2] != '3':
+                        self.labels.append(row)
+                    else: 
+                        self.tongue_labels.append(row)
+
+                # remove the first header row
+                del self.labels[0]
+            
+            # convert the labels to int
+            for i, label in enumerate(self.labels):
+                self.labels[i][2] = int(self.labels[i][2])
+            
+            # if preload data is true then load all the data and apply the transforms as well
+            if self.preloadData:
+                for i, trial in enumerate(self.labels):
+                    with open(os.path.join(self.dataPath,trial[1]), 'rb') as fp:
+                        d = pickle.load(fp)
+                        if self.transform:
+                            d= self.transform(d)
+                        self.data.append(d)
 
     def getTongueData(self):
         for i, trial in enumerate(self.tongue_labels):

@@ -7,6 +7,7 @@ All network architectures: FBCNet, EEGNet, DeepConvNet
 import torch
 import torch.nn as nn
 import sys
+import numpy as np
 current_module = sys.modules[__name__]
 
 debug = False
@@ -281,7 +282,43 @@ class FBCNet(nn.Module):
         x = self.lastLayer(x)
         return x
     
-    
+    def predict(self, x):
+        '''
+        Do prediction with the input x. x.shape should be (1,1,22,1000,9).
+        Return a class label: 
+            0: left hand
+            1: right hand
+            2: foot
+            3: tongue
+
+        The Threshold method:
+            self.forward(x) will return a log_softmax value list of 3 classes
+            predict() will return the highest value if it's larger than log_threshold,
+            otherwise it return label 3 denoting no moving EEG signal detected.
+        '''
+        # print('Here in FBCNet.predict()!')
+
+        Threshold = 0.5
+        log_threshold = np.log(Threshold)
+
+        self.eval()
+        with torch.no_grad():
+            log_softmax_output = self(x)
+        self.train()
+        
+        # TODO: implement the threshold predict function 
+        '''
+        0: left hand
+        1: right hand
+        2: foot
+        3: tongue
+        '''
+        max_value = torch.max(log_softmax_output)
+        if max_value > log_threshold:
+            return torch.argmax(max_value)
+        else:
+            return 3 # label of tongue or other non-sense EEG
+
 #%% The FBCNet
 class FBCNet_old(nn.Module):
     '''
