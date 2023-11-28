@@ -338,7 +338,7 @@ class baseModel():
 
             # save model
             if (monitors['epoch'] + 1) % saveFreq == 0:
-                modelSavePath =  os.path.join(self.modelSavePath, f"epoch{monitors['epoch']}.pth")
+                modelSavePath =  os.path.join(self.modelSavePath, f"epoch{monitors['epoch']+1}.pth")
                 torch.save({
                             'epoch': monitors['epoch'] + 1,
                             'model_state_dict': self.net.state_dict(),

@@ -191,7 +191,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     else:
         transform = None
     
-    print(transform)
+    # print(transform)
 
     #%% check and Load the data
     print('Data loading in progress')
@@ -378,7 +378,7 @@ if __name__ == '__main__':
     if count >2:
         nGPU = int(arguments[2])
     else:
-        nGPU = None
+        nGPU = 0
 
     if count >3:
         subTorun = [int(s) for s in str(arguments[3]).split(',')]
