@@ -1,3 +1,7 @@
+# branch: master -> dolphin
+Try some new net architecture.
+
+
 # FBCNet
 ## FBCNet: An Efficient Multi-view Convolutional Neural Network for Brain-Computer Interface
 
