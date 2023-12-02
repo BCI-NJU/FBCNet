@@ -75,11 +75,20 @@ class eegDataset(Dataset):
         if self.dataLabelsPath == None:
             # load testData here
             testData = np.load(self.dataPath, allow_pickle=True) # load TestData.npy
-            # print(testData)
-            self.data = testData
-            self.preloadData = True
-            self.labels = [int(x['label']) for x in self.data]
-            print("Test data eegDataset finished!")
+            # print(testData[0]['data'].shape)
+            if len(testData[0]['data'].shape) == 2:
+                # lyh data, need band-filter
+                for d in testData:
+                    if self.transform:
+                        d = self.transform(d)
+                        # print(d['data'].shape)
+                    self.data.append(d)
+                    self.labels.append(int(d['label']))
+            else:
+                self.data = testData
+                self.preloadData = True
+                self.labels = [int(x['label']) for x in self.data]
+                print("Test data eegDataset finished!")
         else:
             # The original codes: load train data
 

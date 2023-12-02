@@ -169,25 +169,26 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
     
                    
-    #%% create output folder
-    # based on current date and time -> always unique!
-    randomFolder = str(time.strftime("%Y-%m-%d--%H-%M", time.localtime()))+ '-'+str(random.randint(1,1000))
-    config['outPath'] = os.path.join(config['outPath'], randomFolder,'')
-    config['resultsOutPath'] = os.path.join(config['outPath'], "Results")
-    config['modelsOutPath'] = os.path.join(config['outPath'], config['network'])
-    # create the path
-    if not os.path.exists(config['outPath']):
-        os.makedirs(config['outPath'])
-    print('Outputs will be saved in folder : ' + config['outPath'])
-    if not os.path.exists(config['resultsOutPath']):
-        os.makedirs(config['resultsOutPath'])
-    print('Results will be saved in folder : ' + config['resultsOutPath'])
-    if not os.path.exists(config['modelsOutPath']):
-        os.makedirs(config['modelsOutPath'])
-    print('Models will be saved in folder : ' + config['modelsOutPath'])
+    # #%% create output folder
+    # # based on current date and time -> always unique!
+    # randomFolder = str(time.strftime("%Y-%m-%d--%H-%M", time.localtime()))+ '-'+str(random.randint(1,1000))
+    # config['outPath'] = os.path.join(config['outPath'], randomFolder,'')
+    # config['resultsOutPath'] = os.path.join(config['outPath'], "Results")
+    # config['modelsOutPath'] = os.path.join(config['outPath'], config['network'])
 
-    # Write the config dictionary
-    dictToCsv(os.path.join(config['outPath'],'config.csv'), config)
+    # # create the path
+    # if not os.path.exists(config['outPath']):
+    #     os.makedirs(config['outPath'])
+    # print('Outputs will be saved in folder : ' + config['outPath'])
+    # if not os.path.exists(config['resultsOutPath']):
+    #     os.makedirs(config['resultsOutPath'])
+    # print('Results will be saved in folder : ' + config['resultsOutPath'])
+    # if not os.path.exists(config['modelsOutPath']):
+    #     os.makedirs(config['modelsOutPath'])
+    # print('Models will be saved in folder : ' + config['modelsOutPath'])
+
+    # # Write the config dictionary
+    # dictToCsv(os.path.join(config['outPath'],'config.csv'), config)
 
     #%% Check and compose transforms
     if config['transformArguments'] is not None:
@@ -259,13 +260,13 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     print("ALL CONFIG COMPLETED\n " + "*" * 30)
     return config, data, net
 
-def makeDataToEvaluate():
+def makeDataToEvaluate(test_data_path):
     '''
     Make data to use in predict().
     data here is <eegDataset.eegDataset object>
     '''
 
-    test_data_path = 'data/bci42a/testData/TestData.npy'
+    # test_data_path = 'data/bci42a/testData/TestData.npy'
     test_dataset = eegDataset(test_data_path, None)
     return test_dataset
 
@@ -307,10 +308,10 @@ def predict(net, testData):
     result = net.predict(data.unsqueeze(1))
     return result
 
-def evaluate(net):
+def evaluate(net, test_data_path):
     '''
-    Evaluate the net with 'data/bci42a/testData/TestData.npy'.
-    Calculate the prediction accuracy and return it.
+    Evaluate the net with test_data_path.
+    Calculate the prediction accuracy.
 
     In the for-loop is the same code as predict() in this file,
     copied here to reduce the overhead of parameter passing (net).
@@ -318,7 +319,7 @@ def evaluate(net):
     '''
 
     print("BEGIN evaluation.")
-    testData = makeDataToEvaluate()
+    testData = makeDataToEvaluate(test_data_path)
     # print(len(testData)) # result: 2070: 774(0\1\2 tests) + 1296(tongue)
 
     # get data
@@ -334,7 +335,7 @@ def evaluate(net):
     0.7 | 0.56 | 0.50
     0.8 | 0.72 | 0.37
     '''
-    set_threshold = 0.65
+    set_threshold = 0.01
 
 
     correct_num = total_num = correct_tongue_num = 0
@@ -356,9 +357,9 @@ def evaluate(net):
 
     print(f"threshold={set_threshold}; log threshold={np.log(set_threshold)}")
     print(f"All labels: {labels}; total num: {total_num}; correct num: {correct_num}")
-    print(f"Acc tongue: {correct_tongue_num/1296}; Acc others: {(correct_num-correct_tongue_num)/774}")
+    print(f"Acc non-sense: {correct_tongue_num/labels[3]}; Acc others: {(correct_num-correct_tongue_num)/sum(labels[:-1])}")
     acc = correct_num / total_num
-    return acc
+    print(f"Total accuracy: {acc}")
 
 def generateTestData(data):
     '''
@@ -443,9 +444,23 @@ if __name__ == '__main__':
         subTorun = None
     config, data, net = config(datasetId, network, nGPU, subTorun)
 
-    # generate data if not exist
-    if not os.path.exists('data/bci42a/testData/TestData.npy'):
-        generateTestData(data)
+    # TODO(): use lyh data to test
+    use_LYH_data = True
+    lyh_path = "data/lyh_data/lyh_data_filtered.npy"
+    test_path = "data/bci42a/testData/TestData.npy"
 
-    ret = evaluate(net)
-    print(ret)
+    """
+    Evaluation RoadMap:
+        main()  ->  config()
+                    generateTestData()
+                    evaluate()      ->  makeDataToEvaluate()
+                                    ->  net.predict()  
+    """
+    if use_LYH_data:
+        evaluate(net, lyh_path)
+    else:
+        # generate data if not exist
+        if not os.path.exists('data/bci42a/testData/TestData.npy'):
+            generateTestData(data)
+
+        evaluate(net, test_path)
