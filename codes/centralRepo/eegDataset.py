@@ -42,7 +42,7 @@ class eegDataset(Dataset):
     https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
     '''
     
-    def __init__(self, dataPath, dataLabelsPath, transform = None, preloadData = False):
+    def __init__(self, dataPath, dataLabelsPath, transform = None, preloadData = False, selected_chans = None):
         '''
         Initialize EEG dataset
 
@@ -71,7 +71,8 @@ class eegDataset(Dataset):
         self.dataLabelsPath = dataLabelsPath
         self.preloadData = preloadData
         self.transform = transform
-        
+        self.selected_chans = selected_chans
+
         if self.dataLabelsPath == None:
             # load testData here
             testData = np.load(self.dataPath, allow_pickle=True) # load TestData.npy
@@ -86,7 +87,7 @@ class eegDataset(Dataset):
             # Load the labels file
             with open(self.dataLabelsPath, "r") as f:
                 eegReader = csv.reader(f, delimiter = ',')
-                # 单独处理标签为舌头的数据
+                # 单独处理标签为舌头的数据，因为我们只需要三分类，而BCIC数据集是四分类
                 for row in eegReader:
                     if row[2] != '3':
                         self.labels.append(row)
@@ -108,6 +109,7 @@ class eegDataset(Dataset):
                         if self.transform:
                             d= self.transform(d)
                         self.data.append(d)
+                        
 
     def getTongueData(self):
         for i, trial in enumerate(self.tongue_labels):
@@ -132,7 +134,12 @@ class eegDataset(Dataset):
                 data = pickle.load(fp)
                 if self.transform:
                     data = self.transform(data) 
-                
+
+        # 选择几个通道用来训练
+        if self.selected_chans and data['data'].shape[0] != len(self.selected_chans):
+            data['data'] = data['data'][self.selected_chans]
+        
+        
         d = {'data': data['data'], 'label': data['label']}
         
         return d

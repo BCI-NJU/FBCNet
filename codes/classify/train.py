@@ -26,6 +26,8 @@ from saveData import fetchData
 import warnings
 warnings.filterwarnings("ignore")
 
+ch_names = ['EEG-Fz', 'EEG-0', 'EEG-1', 'EEG-2', 'EEG-3', 'EEG-4', 'EEG-5', 'EEG-C3', 'EEG-6', 'EEG-Cz', 'EEG-7', 'EEG-C4', 'EEG-8', 'EEG-9', 'EEG-10', 'EEG-11', 'EEG-12', 'EEG-13', 'EEG-14', 'EEG-Pz', 'EEG-15', 'EEG-16', 'EOG-left', 'EOG-central', 'EOG-right']
+
 # reporting settings
 debug = False
 
@@ -81,7 +83,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
     elif datasetId == 0:
-        config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 3, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True}
     
@@ -196,7 +198,9 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     #%% check and Load the data
     print('Data loading in progress')
     fetchData(os.path.dirname(config['inDataPath']), datasetId) # Make sure that all the required data is present!
-    data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform)
+    selected_chans = ['EEG-C3', 'EEG-Cz', 'EEG-C4']
+    selected_chans = [ch_names.index(ch) for ch in selected_chans]
+    data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform, selected_chans=selected_chans)
     print('Data loading finished')
 
     #%% Check and load the model
