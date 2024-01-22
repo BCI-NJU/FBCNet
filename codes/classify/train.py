@@ -83,7 +83,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     elif datasetId == 0:
         config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
-                                    'nClass': 3, 'doWeightNorm': True}
+                                    'nClass': 2, 'doWeightNorm': True}
     
     # Training related details    
     config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
@@ -195,8 +195,9 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
 
     #%% check and Load the data
     print('Data loading in progress')
+    config['train_type'] = 0
     fetchData(os.path.dirname(config['inDataPath']), datasetId) # Make sure that all the required data is present!
-    data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform)
+    data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform, train_type = config['train_type'])
     print('Data loading finished')
 
     #%% Check and load the model
@@ -244,7 +245,6 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
 
 def spiltDataSet(trainDataToUse, testDataToUse, validationSet, data):
     '''
-    去掉标签为tongue的数据
     把T和E数据集合并,并取80%用于训练, 20%用于测试
     各subject分层采样
     将测试集存为.npy文件

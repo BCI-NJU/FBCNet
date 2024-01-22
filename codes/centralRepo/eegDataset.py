@@ -42,7 +42,7 @@ class eegDataset(Dataset):
     https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
     '''
     
-    def __init__(self, dataPath, dataLabelsPath, transform = None, preloadData = False):
+    def __init__(self, dataPath, dataLabelsPath, transform = None, preloadData = False, train_type = None):
         '''
         Initialize EEG dataset
 
@@ -71,7 +71,8 @@ class eegDataset(Dataset):
         self.dataLabelsPath = dataLabelsPath
         self.preloadData = preloadData
         self.transform = transform
-        
+        self.train_type = train_type
+
         if self.dataLabelsPath == None:
             # load testData here
             testData = np.load(self.dataPath, allow_pickle=True) # load TestData.npy
@@ -95,12 +96,8 @@ class eegDataset(Dataset):
             # Load the labels file
             with open(self.dataLabelsPath, "r") as f:
                 eegReader = csv.reader(f, delimiter = ',')
-                # 单独处理标签为舌头的数据
                 for row in eegReader:
-                    if row[2] != '3':
-                        self.labels.append(row)
-                    else: 
-                        self.tongue_labels.append(row)
+                    self.labels.append(row)
 
                 # remove the first header row
                 del self.labels[0]
@@ -143,7 +140,10 @@ class eegDataset(Dataset):
                     data = self.transform(data) 
                 
         d = {'data': data['data'], 'label': data['label']}
-        
+        if self.train_type != None:
+            # 0 means this is the type we want
+            # 1 means other types
+            d['label'] = 0 if self.train_type == d['label'] else 1
         return d
     
     def createPartialDataset(self, idx, loadNonLoadedData = False):
