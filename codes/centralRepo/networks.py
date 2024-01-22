@@ -299,6 +299,7 @@ class FBCNet(nn.Module):
         # print('Here in FBCNet.predict()!')
 
         log_threshold = np.log(threshold)
+        print(x.shape)
         
         self.eval()
         with torch.no_grad():
@@ -306,7 +307,6 @@ class FBCNet(nn.Module):
         self.train()
         # print(f"Output: {log_softmax_output}")
         
-        # TODO: implement the threshold predict function 
         '''
         0: left hand
         1: right hand

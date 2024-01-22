@@ -219,15 +219,17 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     print('Trainable Parameters in the network are: ' + str(count_parameters(net)))
 
     #%% check and load/save the the network initialization.
+    test_model_param_path = 'codes/netInitModels/best_model_22c.pth'
+
     if config['loadNetInitState']:
-        if os.path.exists('codes/netInitModels/best_model.pth'):
+        if os.path.exists(test_model_param_path):
             # netInitStates are model_state_dict / optimizer_state_ict / acc / loss / ... 
             if not nGPU:
-                netInitStates = torch.load('codes/netInitModels/best_model.pth', map_location=torch.device('cpu'))
+                netInitStates = torch.load(test_model_param_path, map_location=torch.device('cpu'))
             else:
-                netInitStates = torch.load('codes/netInitModels/best_model.pth')  
+                netInitStates = torch.load(test_model_param_path)  
             netInitState = netInitStates["model_state_dict"]          
-            print('Parameters in best_model.pth loaded.')
+            print(f'Parameters in {test_model_param_path} loaded.')
         else:
             if config['netInitStateExists']:
                 netInitState = torch.load(config['pathNetInitState'])
@@ -335,11 +337,12 @@ def evaluate(net, test_data_path):
     0.7 | 0.56 | 0.50
     0.8 | 0.72 | 0.37
     '''
-    set_threshold = 0.01
+    set_threshold = 0.5
 
 
     correct_num = total_num = correct_tongue_num = 0
     labels = [0] * 4
+    confusion_matrix = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
     for testData in dataLoader:
         data, label = testData['data'], testData['label']
         labels[int(label)] += 1
@@ -349,17 +352,23 @@ def evaluate(net, test_data_path):
         '''
         result = net.predict(data.unsqueeze(1), threshold=set_threshold)
         print(f'id: {total_num}; result: {result}; true-label: {int(label)}')
+        confusion_matrix[result][int(label)] += 1
         if result == int(label):
             correct_num += 1
             if int(label) == 3:
                 correct_tongue_num += 1
         total_num += 1
 
+
     print(f"threshold={set_threshold}; log threshold={np.log(set_threshold)}")
     print(f"All labels: {labels}; total num: {total_num}; correct num: {correct_num}")
     print(f"Acc non-sense: {correct_tongue_num/labels[3]}; Acc others: {(correct_num-correct_tongue_num)/sum(labels[:-1])}")
     acc = correct_num / total_num
     print(f"Total accuracy: {acc}")
+    print("Confusion Matrix: ")
+    for i in range(len(confusion_matrix)):
+        print(confusion_matrix[i])
+
 
 def generateTestData(data):
     '''
@@ -446,7 +455,8 @@ if __name__ == '__main__':
 
     # TODO(): use lyh data to test
     use_LYH_data = True
-    lyh_path = "data/lyh_data/lyh_data_filtered.npy"
+    # lyh_path = "data/lyh_data/lyh_data_filtered.npy"
+    lyh_path = "data/emotiv_data/data/lyh_data_filtered.npy"
     test_path = "data/bci42a/testData/TestData.npy"
 
     """
