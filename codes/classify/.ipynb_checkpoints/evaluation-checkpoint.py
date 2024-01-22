@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-Train model using the whole dataset and save the net weight.
-@author: Yunji Zhang
+Generate test data and do evaluation.
+Generate test data only. Low memory usage. 
+    Some machine(mine) will run out of memory when running "train.py", 
+    which collect train、val、test data at one time.
+    OS will kill python progress when run out of memory.
+
+@author: Renfei Dang
 """
 import numpy as np
 import torch
@@ -26,7 +31,7 @@ from saveData import fetchData
 import warnings
 warnings.filterwarnings("ignore")
 
-ch_names = ['EEG-Fz', 'EEG-0', 'EEG-1', 'EEG-2', 'EEG-3', 'EEG-4', 'EEG-5', 'EEG-C3', 'EEG-6', 'EEG-Cz', 'EEG-7', 'EEG-C4', 'EEG-8', 'EEG-9', 'EEG-10', 'EEG-11', 'EEG-12', 'EEG-13', 'EEG-14', 'EEG-Pz', 'EEG-15', 'EEG-16', 'EOG-left', 'EOG-central', 'EOG-right']
+from torch.utils.data import DataLoader
 
 # reporting settings
 debug = False
@@ -83,7 +88,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
     elif datasetId == 0:
-        config['modelArguments'] = {'nChan': 8, 'nTime': 1000, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True}
     
@@ -193,15 +198,12 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     else:
         transform = None
     
-    # print(transform)
+    print(transform)
 
     #%% check and Load the data
     print('Data loading in progress')
     fetchData(os.path.dirname(config['inDataPath']), datasetId) # Make sure that all the required data is present!
-    selected_chans = [1, 2, 4, 5, 6, 7, 11, 12]  # 8通道
-    # selected_chans = [0, 1, 2, 4, 5, 6, 7, 11, 12, 21]  # 10通道
-    # selected_chans = [7, 9, 11] # 3通道
-    data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform, selected_chans=selected_chans)
+    data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform)
     print('Data loading finished')
 
     #%% Check and load the model
@@ -247,123 +249,145 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     print("ALL CONFIG COMPLETED\n " + "*" * 30)
     return config, data, net
 
-def spiltDataSet(trainDataToUse, testDataToUse, validationSet, data):
+def makeDataToEvaluate():
     '''
-    去掉标签为tongue的数据
-    把T和E数据集合并,并取80%用于训练, 20%用于测试
-    各subject分层采样
-    将测试集存为.npy文件
-    Return:
-    trainData: torch.DataSet类型
-    valData: torch.DataSet类型
+    Make data to use in predict().
+    data here is <eegDataset.eegDataset object>
+    '''
+
+    test_data_path = 'data/bci42a/testData/TestData.npy'
+    test_dataset = eegDataset(test_data_path, None)
+    return test_dataset
+
+    # subs = sorted(set([d[3] for d in data.labels]))
+    # nSub = len(subs)
+
+    # for iSub, sub in enumerate(subs):
+    #     # use sub first only here
+    #     if iSub > 0:
+    #         break
+
+    #     # extract subject data
+    #     subIdx = [i for i, x in enumerate(data.labels) if x[3] in sub]
+    #     data.createPartialDataset(subIdx, loadNonLoadedData = True)
+    #     return data   
+        
+def predict(net, testData):
+    '''
+    Predict once, using initNet to predict testData.
+    The function returns a int class from [0,1,2,3], denoting
+        0: left hand
+        1: right hand
+        2: feet
+        3: tongue or non-sense class
+
+    testData structure:
+        testData[0] is a dict.      {
+                                        'data', tensor...,
+                                        'label', uint8
+                                    }
+    '''
+    print("BEGIN predict.")
+    data, label = testData['data'], testData['label']
+
+    '''
+    data.shape -> (1,22,1000,9) -> (batch_size, channel, time, filterBand)
+    The FBCNet.forward need shape (batch_size, 1, channel, time, filterBand)
+    '''
+    result = net.predict(data.unsqueeze(1))
+    return result
+
+def evaluate(net):
+    '''
+    Evaluate the net with 'data/bci42a/testData/TestData.npy'.
+    Calculate the prediction accuracy and return it.
+
+    In the for-loop is the same code as predict() in this file,
+    copied here to reduce the overhead of parameter passing (net).
+    And predict() API is still there for future use.
+    '''
+
+    print("BEGIN evaluation.")
+    testData = makeDataToEvaluate()
+    # print(len(testData)) # result: 2070: 774(0\1\2 tests) + 1296(tongue)
+
+    # get data
+    dataLoader = DataLoader(testData)
+    # data, label = data_one['data'], data_one['label']
+
+    currect_num = total_num = 0
+    labels = [0] * 4
+    for testData in dataLoader:
+        data, label = testData['data'], testData['label']
+        labels[int(label)] += 1
+        '''
+        data.shape -> (1,22,1000,9) -> (batch_size, channel, time, filterBand)
+        The FBCNet.forward need shape (batch_size, 1, channel, time, filterBand)
+        '''
+        result = net.predict(data.unsqueeze(1))
+        print(f'id: {total_num}; result: {result}; true-label: {int(label)}')
+        if result == int(label):
+            currect_num += 1
+        total_num += 1
+    print(f"All labels: {labels}")
+    acc = currect_num / total_num
+    return acc
+
+def generateTestData(data):
+    '''
+    Generate test data only. 
+    Copied from train.py @author: Yunji Zhang and modified by Renfei Dang.
     '''
 
     subs = sorted(set([d[3] for d in data.labels]))
 
     train_data = []
-    val_data = []
     test_data = []
 
     # 每个个体分层采样
     for iSub, sub in enumerate(subs):
-        
         # extract subject data
         subIdx = [i for i, x in enumerate(data.labels) if x[3] in sub]
         subData = copy.deepcopy(data)
         subData.createPartialDataset(subIdx, loadNonLoadedData = True)
         
-        trainData = copy.deepcopy(subData)
+        testData = copy.deepcopy(subData)
         del subData
-        testData = copy.deepcopy(trainData)
         
-        # 训练集0.8，测试集0.2
-        # print(len(trainData))
-        # print(math.ceil(len(trainData)*config['trainDataToUse']))
-        trainData.createPartialDataset(list(range(0, math.ceil(len(trainData)*config['trainDataToUse']))))
+        # 测试集0.2
         testData.createPartialDataset(list( range( 
-            math.ceil(len(testData)*(1-config['testDataToUse'])) , len(testData))))
-
-        # 训练集再分，训练集0.8，验证集0.2
-        valData = copy.deepcopy(trainData)
-        valData.createPartialDataset(list( range( 
-            math.ceil(len(trainData)*(1-config['validationSet'])) , len(trainData))))
-        trainData.createPartialDataset(list(range(0, math.ceil(len(trainData)*(1-config['validationSet'])))))
-        
-        train_data.append(trainData)
-        val_data.append(valData)
+            math.ceil(len(testData)*0.8) , len(testData))))
         test_data.append(testData)
 
     # 每个个体分层采样的数据合在一起
-    for i in range(1, len(train_data)):
-        train_data[0].combineDataset(train_data[i])
-        val_data[0].combineDataset(val_data[i])
+    for i in range(1, len(test_data)):
         test_data[0].combineDataset(test_data[i])
 
-    # 得到最后的训练集、验证集和测试集
-    trainData = copy.deepcopy(train_data[0])
-    valData = copy.deepcopy(val_data[0])
+    # 得到最后的测试集
     testData = copy.deepcopy(test_data[0])
-    del train_data, val_data, test_data
+    del test_data
+    print(f'testDataLen: {len(testData)} (without tongue)')
 
     # 测试集要加上tongue标签的数据
     finalTestData = data.getTongueData()
     for sample in testData:
         finalTestData.append(sample)
-    
-    # print(len(trainData), len(valData), len(testData), len(finalTestData))
-    # print(finalTestData[0])
-    # print(finalTestData[-1])
-    
+    print(f'finalTestDataLen: {len(finalTestData)} (with tongue)')
+
     # 将测试集存成.npy文件
-    if not os.path.exists('TestData.npy'):
+    print("Trying to save testData to TestData.npy file.")
+    if not os.path.exists('data/bci42a/testData/TestData.npy'):
         # 将 PyTorch 张量转换为 NumPy 数组
         numpy_data_list = [{'data': item['data'].numpy(), 'label': item['label']} for item in finalTestData]
-        # 保存 NumPy 数组
-        np.save('TestData.npy', numpy_data_list)
-
-    del finalTestData
-
-    loaded_data_list = np.load('TestData.npy', allow_pickle=True)
-
-    return trainData, valData
-
-def train(config, data, initNet):
-    '''
-    Train model using the whole dataset and save the net weight.
-    ------
-    params: config (type: dict): Config dictionary
-            data (type: torch.Dataset): Dataset
-            initNet (type: torch.nn): Initialized network model
-    '''
-
-
-    #%% Let the training begin
-    trainResults = []
-    valResults = []
-    
-    start = time.time()
-    
-    trainData, valData = spiltDataSet(config['trainDataToUse'], config['testDataToUse'], \
-                                                config['validationSet'], data)
-    
-    # D:\codes\BCI-VR\FBCNet\codes\netModels\2023-11-20--20-41-312\sub0\FBCNet_0
-    model = baseModel(net=initNet, resultsSavePath=config['resultsOutPath'], modelSavePath=config['modelsOutPath'], batchSize= config['batchSize'], nGPU = nGPU)
-    model.train(trainData, valData, **config['modelTrainArguments'])
-    
-    # extract the important results.
-    trainResults.append([d['results']['trainBest'] for d in model.expDetails])
-    valResults.append([d['results']['valBest'] for d in model.expDetails])
-    
-    # save the results
-    results = {'train:' : trainResults[-1], 'val: ': valResults[-1]} 
-    dictToCsv(os.path.join(config['resultsOutPath'],'results.csv'), results)
-    
-    # Time taken
-    print("Time taken = "+ str(time.time()-start))
-
         
- 
-
+        # 保存 NumPy 数组
+        file_path = 'data/bci42a/testData/TestData.npy'
+        dir_name = os.path.dirname(file_path) # whether the dir exist or not
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        np.save('data/bci42a/testData/TestData.npy', numpy_data_list)
+    print("Generate TestData.npy successfully!!!")
+    del finalTestData
 
 if __name__ == '__main__':
 
@@ -383,7 +407,7 @@ if __name__ == '__main__':
     if count >2:
         nGPU = int(arguments[2])
     else:
-        nGPU = 0
+        nGPU = None
 
     if count >3:
         subTorun = [int(s) for s in str(arguments[3]).split(',')]
@@ -391,4 +415,10 @@ if __name__ == '__main__':
     else:
         subTorun = None
     config, data, net = config(datasetId, network, nGPU, subTorun)
-    train(config, data, net)
+
+    # generate data if not exist
+    if not os.path.exists('data/bci42a/testData/TestData.npy'):
+        generateTestData(data)
+
+    ret = evaluate(net)
+    print(ret)
