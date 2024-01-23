@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import os
 import pickle
 import copy
+from tqdm import tqdm
 
 masterPath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(1, os.path.join(masterPath, 'centralRepo'))
@@ -49,6 +50,7 @@ class baseModel():
         self,
         net,
         resultsSavePath=None,
+        modelSavePath=None,
         seed=3141592,
         setRng=True,
         preferedDevice='gpu',
@@ -60,6 +62,7 @@ class baseModel():
         self.batchSize = batchSize
         self.setRng = setRng
         self.resultsSavePath = resultsSavePath
+        self.modelSavePath = modelSavePath
         self.device = None
 
         # Set RNG
@@ -75,6 +78,13 @@ class baseModel():
             if not os.path.exists(self.resultsSavePath):
                 os.makedirs(self.resultsSavePath)
             print('Results will be saved in folder : ' + self.resultsSavePath)
+              
+        # Check for the model save path.
+        if self.modelSavePath is not None:
+            if not os.path.exists(self.modelSavePath):
+                os.makedirs(self.modelSavePath)
+            print('Models will be saved in folder : ' + self.modelSavePath)
+        
 
     def train(
         self,
@@ -252,7 +262,8 @@ class baseModel():
         bestVarToCheck = 'valLoss',
         continueAfterEarlystop = False,
         classes = None,
-        sampler = None):
+        sampler = None,
+        saveFreq = 100):
         '''
         Internal function to perform the training.
         Do not directly call this function. Use train instead
@@ -321,9 +332,19 @@ class baseModel():
         doStop = False
 
         while not doStop:
+            print("\t \t Epoch "+ str(monitors['epoch']+1))
             # train the epoch.
             loss.append(self.trainOneEpoch(trainData, lossFn, self.optimizer, sampler = sampler))
-
+            # save model
+            if (monitors['epoch'] + 1) % saveFreq == 0:
+                modelSavePath =  os.path.join(self.modelSavePath, f"epoch{monitors['epoch']}.pth")
+                torch.save({
+                            'epoch': monitors['epoch'] + 1,
+                            'model_state_dict': self.net.state_dict(),
+                            'optimizer_state_dict': self.optimizer.state_dict(),
+                            'loss': monitors['valLoss'],
+                            'acc' : monitors['valInacc']
+                            }, modelSavePath)
             # evaluate the training and validation accuracy.
             pred, act, l = self.predict(trainData, sampler = sampler, lossFn=lossFn)
             trainResults.append(self.calculateResults(pred, act, classes=classes))
@@ -337,7 +358,6 @@ class baseModel():
             monitors['valInacc'] = 1 - valResults[-1]['acc']
 
             # print the epoch info
-            print("\t \t Epoch "+ str(monitors['epoch']+1))
             print("Train loss = "+ "%.3f" % trainLoss[-1] + " Train Acc = "+
                   "%.3f" % trainResults[-1]['acc']+
                   ' Val Acc = '+ "%.3f" % valResults[-1]['acc'] +
@@ -348,7 +368,16 @@ class baseModel():
                     bestValue = monitors[bestVarToCheck]
                     bestNet = copy.deepcopy(self.net.state_dict())
                     bestOptimizerState = copy.deepcopy(self.optimizer.state_dict())
-
+                    # save bestModel
+                    modelSavePath =  os.path.join(self.modelSavePath, "best_model.pth")
+                    torch.save({
+                            'epoch': monitors['epoch'] + 1,
+                            'model_state_dict': self.net.state_dict(),
+                            'optimizer_state_dict': self.optimizer.state_dict(),
+                            'loss': monitors['valLoss'],
+                            'acc' : monitors['valInacc']
+                            }, modelSavePath)
+                    print('Best Model Found: ', bestValue, " saved at: ", modelSavePath)
             #Check if to stop
             doStop = stopCondition(monitors)
 
@@ -505,10 +534,7 @@ class baseModel():
                 _, preds = torch.max(preds, 1)
                 predicted.extend(preds.data.tolist())
                 actual.extend(d['label'].tolist())
-
-        # return predicted, actual, torch.tensor(loss).item()/totalCount
-        debug = loss.clone().detach().item()
-        return predicted, actual, debug/totalCount
+        return predicted, actual, torch.tensor(loss).item()/totalCount
 
     def calculateResults(self, yPredicted, yActual, classes = None):
         '''
