@@ -262,10 +262,70 @@ def parseKoreaDataset(datasetPath, savePath, epochWindow = [0,4],
                 
                 savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
 
+# XXX: added by yunzina
+def parseNewKoreaFile(dataPath, labelPath, epochWindow = [0,5], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30]):
+    '''
+    Parse the bci42a data file and return an epoched data. 
+
+    Parameters
+    ----------
+    dataPath : str
+        path to the .vhdr file
+    labelPath : str
+        path to the labels mat file. XXX: note by yunzinan, in new korea dataset, we don't get the label infos ahead
+    epochWindow : list, optional
+        time segment to extract in seconds. The default is [0,5], because each task would last for 5 sec here
+    chans  : list : channels to select from the data. we only need 12 channels out of 32 channels provided
+    
+    Returns
+    -------
+    data : an EEG structure with following fields:
+        x: 3d np array with epoched EEG data : chan x time x trials
+        y: 1d np array containing trial labels starting from 0
+        s: float, sampling frequency
+        c: list of channels - can be list of ints. 
+    '''
+    print(dataPath)
+    eventCode = [1, 2, 3] # start of the trial at t=0, 1: left-hand, 2: right-hand, 3: right-foot
+    fs = 250 # so 4 sec will be 1250 = 5 * 250 time points
+    # offset = 0 # we don't need offset here
+    
+    #load the gdf file using MNE
+    raw_bv = mne.io.read_raw_brainvision(dataPath)
+    raw_bv.load_data()
+    bv_event_labels = mne.events_from_annotations(raw_bv)[1]
+
+    bv_events = mne.events_from_annotations(raw_bv)[0][:,[0,2]].tolist()
+    eeg = raw_bv.get_data()
+    
+    # drop channels
+    if chans is not None:
+        eeg = eeg[chans,:]
+    
+    #Epoch the data
+    events = [event for event in bv_events if event[1] in eventCode]
+    y = np.array([i[1] for i in events])
+    epochInterval = np.array(range(epochWindow[0]*fs, epochWindow[1]*fs)) # should be [0, 1250]
+    x = np.stack([eeg[:, epochInterval+event[0] ] for event in events], axis = 2)
+    
+    # Multiply the data with 1e6
+    x = x*1e6 # XXX: do we need this?!
+    
+    # have a check to ensure that all the 288 EEG trials are extracted.
+    assert x.shape[-1] == 90, "Could not extracted all the 90 trials from BrainVision file: {}. Manually check what is the reason for this".format(dataPath)
+
+    #Load the labels
+    # change the labels from [1-3] to [0-2] 
+    y = y -1
+    
+    data = {'x': x, 'y': y, 'c': np.array(raw_bv.info['ch_names'])[chans].tolist(), 's': fs}
+    return data
+
+
 
 # XXX: added by yunzinan
 def parseNewKoreaDataset(datasetPath, savePath, 
-                       epochWindow = [0,4], chans = list(range(12)), verbos = False):
+                       epochWindow = [0,5], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30], verbos = False):
     '''
     Parse the Deep BCI's dataset in a MATLAB format that will be used in the next analysis
 
@@ -285,30 +345,41 @@ def parseNewKoreaDataset(datasetPath, savePath,
     The dataset will be saved at savePath.
 
     '''
-    raise ValueError("OK! start parsing new Korea dataset!")
-    subjects=['A01T','A02T','A03T','A04T','A05T','A06T','A07T','A08T','A09T']
-    test_subjects=['A01E','A02E','A03E','A04E','A05E','A06E','A07E','A08E','A09E']
-    subAll = [subjects, test_subjects]
-    subL = ['s', 'se'] # s: session 1, se: session 2 (session evaluation)
+    # subjects=['A01T','A02T','A03T','A04T','A05T','A06T','A07T','A08T','A09T']
+    # test_subjects=['A01E','A02E','A03E','A04E','A05E','A06E','A07E','A08E','A09E']
+    # subAll = [subjects, test_subjects]
+    # subL = ['s', 'se'] # s: session 1, se: session 2 (session evaluation)
+
     
     print('Extracting the data into mat format: ')
     if not os.path.exists(savePath):
         os.makedirs(savePath)
     print('Processed data be saved in folder : ' + savePath)
     
-    for iSubs, subs in enumerate(subAll):
-        for iSub, sub in enumerate(subs):
-            if not os.path.exists(os.path.join(datasetPath, sub+'.mat')):
-                raise ValueError('The BCI-IV-2a original dataset doesn\'t exist at path: ' + 
-                                  os.path.join(datasetPath, sub+'.mat') + 
-                                  ' Please download and copy the extracted dataset at the above path '+
-                                  ' More details about how to download this data can be found in the Instructions.txt file')
+    # for iSubs, subs in enumerate(subAll):
+    #     for iSub, sub in enumerate(subs):
+    #         if not os.path.exists(os.path.join(datasetPath, sub+'.mat')):
+    #             raise ValueError('The BCI-IV-2a original dataset doesn\'t exist at path: ' + 
+    #                               os.path.join(datasetPath, sub+'.mat') + 
+    #                               ' Please download and copy the extracted dataset at the above path '+
+    #                               ' More details about how to download this data can be found in the Instructions.txt file')
             
-            print('Processing subject No.: ' + subL[iSubs]+str(iSub+1).zfill(3))
-            data = parseBci42aFile(os.path.join(datasetPath, sub+'.gdf'), 
-                os.path.join(datasetPath, sub+'.mat'), 
-                epochWindow = epochWindow, chans = chans)
-            savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
+    #         print('Processing subject No.: ' + subL[iSubs]+str(iSub+1).zfill(3))
+    #         data = parseBci42aFile(os.path.join(datasetPath, sub+'.gdf'), 
+    #             os.path.join(datasetPath, sub+'.mat'), 
+    #             epochWindow = epochWindow, chans = chans)
+    #         savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
+
+    for i in range(1, 13): # enumerate the 12 subjects, but except the 8th due to worng data format
+        if i == 8: continue 
+        if not os.path.exists(os.path.join(datasetPath, 'MI_' + str(i) + '.vhdr')):
+            raise ValueError("The New Korea original dataset doesn't exist")
+        
+        print("Processing subject No.:" + str(i))
+        data = parseNewKoreaFile(os.path.join(datasetPath, "MI_" + str(i) + ".vhdr"), None, epochWindow=epochWindow, chans=chans)
+        savemat(os.path.join(savePath, "MI_" + str(i).zfill(3) + '.mat'), data)
+
+            
 
     
 def matToPython(datasetPath, savePath, isFiltered = False):
