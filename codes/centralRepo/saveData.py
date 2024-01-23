@@ -263,7 +263,7 @@ def parseKoreaDataset(datasetPath, savePath, epochWindow = [0,4],
                 savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
 
 # XXX: added by yunzina
-def parseNewKoreaFile(dataPath, labelPath, epochWindow = [0,5], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30]):
+def parseNewKoreaFile(dataPath, labelPath, epochWindow = [0,4], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30]):
     '''
     Parse the bci42a data file and return an epoched data. 
 
@@ -305,11 +305,11 @@ def parseNewKoreaFile(dataPath, labelPath, epochWindow = [0,5], chans = [2, 3, 5
     #Epoch the data
     events = [event for event in bv_events if event[1] in eventCode]
     y = np.array([i[1] for i in events])
-    epochInterval = np.array(range(epochWindow[0]*fs, epochWindow[1]*fs)) # should be [0, 1250]
+    epochInterval = np.array(range(epochWindow[0]*fs, epochWindow[1]*fs)) # should be [0, 1000]
     x = np.stack([eeg[:, epochInterval+event[0] ] for event in events], axis = 2)
     
-    # Multiply the data with 1e6
-    x = x*1e6 # XXX: do we need this?!
+    # Multiply the data with 1e6 OR 1e4?
+    x = x*1e4 # XXX: do we need this?!
     
     # have a check to ensure that all the 288 EEG trials are extracted.
     assert x.shape[-1] == 90, "Could not extracted all the 90 trials from BrainVision file: {}. Manually check what is the reason for this".format(dataPath)
@@ -325,7 +325,7 @@ def parseNewKoreaFile(dataPath, labelPath, epochWindow = [0,5], chans = [2, 3, 5
 
 # XXX: added by yunzinan
 def parseNewKoreaDataset(datasetPath, savePath, 
-                       epochWindow = [0,5], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30], verbos = False):
+                       epochWindow = [0,4], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30], verbos = False):
     '''
     Parse the Deep BCI's dataset in a MATLAB format that will be used in the next analysis
 
