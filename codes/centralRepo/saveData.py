@@ -47,7 +47,7 @@ def parseBci42aFile(dataPath, labelPath, epochWindow = [0,4], chans = list(range
         c: list of channels - can be list of ints. 
     '''
     eventCode = ['768'] # start of the trial at t=0
-    fs = 250
+    fs = 250 # so 4 sec will be 1000 = 4 * 250 time points
     offset = 2
     
     #load the gdf file using MNE
@@ -261,6 +261,55 @@ def parseKoreaDataset(datasetPath, savePath, epochWindow = [0,4],
                     fileUrl, epochWindow = epochWindow, chans = chans, downsampleFactor = downsampleFactor)
                 
                 savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
+
+
+# XXX: added by yunzinan
+def parseNewKoreaDataset(datasetPath, savePath, 
+                       epochWindow = [0,4], chans = list(range(12)), verbos = False):
+    '''
+    Parse the Deep BCI's dataset in a MATLAB format that will be used in the next analysis
+
+    Parameters
+    ----------
+    datasetPath : str
+        Path to the BCI IV2a original dataset in gdf formate.
+    savePath : str
+        Path on where to save the epoched eeg data in a mat format.
+    epochWindow : list, optional
+        time segment to extract in seconds. The default is [0,4].
+    chans  : list : channels to select from the data.
+
+    Returns
+    -------
+    None. 
+    The dataset will be saved at savePath.
+
+    '''
+    raise ValueError("OK! start parsing new Korea dataset!")
+    subjects=['A01T','A02T','A03T','A04T','A05T','A06T','A07T','A08T','A09T']
+    test_subjects=['A01E','A02E','A03E','A04E','A05E','A06E','A07E','A08E','A09E']
+    subAll = [subjects, test_subjects]
+    subL = ['s', 'se'] # s: session 1, se: session 2 (session evaluation)
+    
+    print('Extracting the data into mat format: ')
+    if not os.path.exists(savePath):
+        os.makedirs(savePath)
+    print('Processed data be saved in folder : ' + savePath)
+    
+    for iSubs, subs in enumerate(subAll):
+        for iSub, sub in enumerate(subs):
+            if not os.path.exists(os.path.join(datasetPath, sub+'.mat')):
+                raise ValueError('The BCI-IV-2a original dataset doesn\'t exist at path: ' + 
+                                  os.path.join(datasetPath, sub+'.mat') + 
+                                  ' Please download and copy the extracted dataset at the above path '+
+                                  ' More details about how to download this data can be found in the Instructions.txt file')
+            
+            print('Processing subject No.: ' + subL[iSubs]+str(iSub+1).zfill(3))
+            data = parseBci42aFile(os.path.join(datasetPath, sub+'.gdf'), 
+                os.path.join(datasetPath, sub+'.mat'), 
+                epochWindow = epochWindow, chans = chans)
+            savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
+
     
 def matToPython(datasetPath, savePath, isFiltered = False):
     '''
@@ -463,7 +512,7 @@ def fetchData(dataFolder, datasetId = 0):
         id of the dataset:
             0 : bci42a data (default)
 			1 : korea data
-        
+            2 : new korea data (added by yunzinan) 
     Returns
     -------
     None.
@@ -489,6 +538,11 @@ def fetchData(dataFolder, datasetId = 0):
                   'Please make sure that you have ~60GB Internet bandwidth and 80 GB space ' +
                   'the data size is ~60GB so its going to take a while ' +
                   'Meanwhile you can take a nap!')
+        elif datasetId == 2:
+            raise ValueError('The new Korea dataset doesn\'t exist at path: ' +
+                    os.path.join(dataFolder, oDataFolder) + 
+                    ' Please download and copy the extracted dataset at the above path' +
+                    " More details you can mailto:shen.ouy03@gmail.com") 
     else:
         oDataLen = len([name for name in os.listdir(os.path.join(dataFolder, oDataFolder)) 
                         if os.path.isfile(os.path.join(dataFolder, oDataFolder, name))])
@@ -507,7 +561,7 @@ def fetchData(dataFolder, datasetId = 0):
                   ' Meanwhile you can take a nap!')
             parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
 
-        
+        # TODO: there should be a check about the newKorea dataset, but omitted for now. 
             
    # Check if the processed mat data exists:
     if not os.path.exists(os.path.join(dataFolder, rawMatFolder)):
@@ -516,6 +570,8 @@ def fetchData(dataFolder, datasetId = 0):
             parseBci42aDataset( os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
         elif datasetId ==1:
             parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
+        elif datasetId ==2:
+            parseNewKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
 
     # Check if the processed python data exists:
     if not os.path.exists(os.path.join(dataFolder, rawPythonFolder, 'dataLabels.csv')):

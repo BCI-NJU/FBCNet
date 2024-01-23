@@ -36,8 +36,8 @@ def ho(datasetId = None, network = None, nGPU = None, subTorun=None):
     selectiveSubs = False
     
     # decide which data to operate on:
-    # datasetId ->  0:BCI-IV-2a data,    1: Korea data
-    datasets = ['bci42a', 'korea']
+    # datasetId ->  0:BCI-IV-2a data,    1: Korea data, 2: new Korea dataset
+    datasets = ['bci42a', 'korea', 'newKorea']
     
     #%% Define all the model and training related options here.
     config = {}
@@ -52,12 +52,17 @@ def ho(datasetId = None, network = None, nGPU = None, subTorun=None):
     config['network'] = network
     config['batchSize'] = 16
     
-    if datasetId == 1:
+    if datasetId == 1: # the Korea dataset
         config['modelArguments'] = {'nChan': 20, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
-    elif datasetId == 0:
+    elif datasetId == 0: # the BCIC42a dataset
         config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+                                    'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
+                                    'nClass': 4, 'doWeightNorm': True}
+    # XXX: added by yunzinan, this is the new Korea dataset
+    elif datasetId == 2:
+        config['modelArguments'] = {'nChan': 12, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 4, 'doWeightNorm': True}
     
@@ -68,6 +73,9 @@ def ho(datasetId = None, network = None, nGPU = None, subTorun=None):
           'bestVarToCheck': 'valInacc', 'continueAfterEarlystop':True,'lr': 1e-3}
             
     if datasetId ==0:
+        config['modelTrainArguments']['classes'] = [0,1,2,3] # 4 class data
+    # XXX: added by yunzinan 
+    if datasetId ==2:
         config['modelTrainArguments']['classes'] = [0,1,2,3] # 4 class data
 
     config['transformArguments'] = None
@@ -191,6 +199,7 @@ def ho(datasetId = None, network = None, nGPU = None, subTorun=None):
 
     #%% check and Load the data
     print('Data loading in progress')
+    # XXX: this is the very important code
     fetchData(os.path.dirname(config['inDataPath']), datasetId) # Make sure that all the required data is present!
     data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform)
     print('Data loading finished')
