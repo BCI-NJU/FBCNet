@@ -76,7 +76,7 @@ class eegDataset(Dataset):
         if self.dataLabelsPath == None:
             # load testData here
             testData = np.load(self.dataPath, allow_pickle=True) # load TestData.npy
-            # print(testData[0]['data'].shape)
+            # print(testData[0]['data'][21][0])
             if len(testData[0]['data'].shape) == 2:
                 # lyh data, need band-filter
                 for d in testData:
@@ -114,15 +114,6 @@ class eegDataset(Dataset):
                         if self.transform:
                             d= self.transform(d)
                         self.data.append(d)
-
-    def getTongueData(self):
-        for i, trial in enumerate(self.tongue_labels):
-            with open(os.path.join(self.dataPath,trial[1]), 'rb') as fp:
-                d = pickle.load(fp)
-                if self.transform:
-                    d= self.transform(d)
-                self.tongue_data.append(d)
-        return self.tongue_data
         
     def __len__(self):
         return len(self.labels)

@@ -88,7 +88,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
     elif datasetId == 0:
-        config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 12, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True}
     
@@ -219,7 +219,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     print('Trainable Parameters in the network are: ' + str(count_parameters(net)))
 
     #%% check and load/save the the network initialization.
-    test_model_param_path = 'codes/netInitModels/best_model_22c.pth'
+    test_model_param_path = 'codes/netInitModels/best_model-korea-1000.pth'
 
     if config['loadNetInitState']:
         if os.path.exists(test_model_param_path):
@@ -337,7 +337,7 @@ def evaluate(net, test_data_path):
     0.7 | 0.56 | 0.50
     0.8 | 0.72 | 0.37
     '''
-    set_threshold = 0.5
+    set_threshold = 0.01
 
 
     correct_num = total_num = correct_tongue_num = 0
@@ -362,9 +362,9 @@ def evaluate(net, test_data_path):
 
     print(f"threshold={set_threshold}; log threshold={np.log(set_threshold)}")
     print(f"All labels: {labels}; total num: {total_num}; correct num: {correct_num}")
-    print(f"Acc non-sense: {correct_tongue_num/labels[3]}; Acc others: {(correct_num-correct_tongue_num)/sum(labels[:-1])}")
-    acc = correct_num / total_num
-    print(f"Total accuracy: {acc}")
+    # print(f"Acc non-sense: {correct_tongue_num/labels[3]}; Acc others: {(correct_num-correct_tongue_num)/sum(labels[:-1])}")
+    # acc = correct_num / total_num
+    # print(f"Total accuracy: {acc}")
     print("Confusion Matrix: ")
     for i in range(len(confusion_matrix)):
         print(confusion_matrix[i])
@@ -454,10 +454,11 @@ if __name__ == '__main__':
     config, data, net = config(datasetId, network, nGPU, subTorun)
 
     # TODO(): use lyh data to test
-    use_LYH_data = True
+    use_LYH_data = False
     # lyh_path = "data/lyh_data/lyh_data_filtered.npy"
     lyh_path = "data/emotiv_data/data/lyh_data_filtered.npy"
     test_path = "data/bci42a/testData/TestData.npy"
+    # test_path = "data/TestDataKorea.npy"
 
     """
     Evaluation RoadMap:
