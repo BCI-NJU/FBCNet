@@ -355,8 +355,9 @@ def train(config, data, initNet):
     # Time taken
     print("Time taken = "+ str(time.time()-start))
 
-  
+        
  
+
 
 if __name__ == '__main__':
 
