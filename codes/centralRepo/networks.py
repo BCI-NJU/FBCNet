@@ -282,7 +282,7 @@ class FBCNet(nn.Module):
         x = self.lastLayer(x)
         return x
     
-    def predict(self, x):
+    def predict(self, x, threshold=0.01):
         '''
         Do prediction with the input x. x.shape should be (1,1,22,1000,9).
         Return a class label: 
@@ -298,13 +298,13 @@ class FBCNet(nn.Module):
         '''
         # print('Here in FBCNet.predict()!')
 
-        Threshold = 0.5
-        log_threshold = np.log(Threshold)
-
+        log_threshold = np.log(threshold)
+        
         self.eval()
         with torch.no_grad():
             log_softmax_output = self(x)
         self.train()
+        print(f"Output: {log_softmax_output}")
         
         # TODO: implement the threshold predict function 
         '''
@@ -315,7 +315,7 @@ class FBCNet(nn.Module):
         '''
         max_value = torch.max(log_softmax_output)
         if max_value > log_threshold:
-            return torch.argmax(max_value)
+            return torch.argmax(log_softmax_output)
         else:
             return 3 # label of tongue or other non-sense EEG
 

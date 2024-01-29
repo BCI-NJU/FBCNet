@@ -219,13 +219,22 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
 
     #%% check and load/save the the network initialization.
     if config['loadNetInitState']:
-        if config['netInitStateExists']:
-            netInitState = torch.load(config['pathNetInitState'])
+        if os.path.exists('codes/netInitModels/best_model.pth'):
+            # netInitStates are model_state_dict / optimizer_state_ict / acc / loss / ... 
+            if not nGPU:
+                netInitStates = torch.load('codes/netInitModels/best_model.pth', map_location=torch.device('cpu'))
+            else:
+                netInitStates = torch.load('codes/netInitModels/best_model.pth')  
+            netInitState = netInitStates["model_state_dict"]          
+            print('Parameters in best_model.pth loaded.')
         else:
-            setRandom(config['randSeed'])
-            net = network(**config['modelArguments'])
-            netInitState = net.to('cpu').state_dict()
-            torch.save(netInitState, config['pathNetInitState'])
+            if config['netInitStateExists']:
+                netInitState = torch.load(config['pathNetInitState'])
+            else:
+                setRandom(config['randSeed'])
+                net = network(**config['modelArguments'])
+                netInitState = net.to('cpu').state_dict()
+                torch.save(netInitState, config['pathNetInitState'])
 
     #%% Find all the subjects to run 
     subs = sorted(set([d[3] for d in data.labels]))
@@ -244,7 +253,8 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     # Call the network for training
     setRandom(config['randSeed'])
     net = network(**config['modelArguments'])
-    net.load_state_dict(netInitState, strict=False)
+    
+    net.load_state_dict(netInitState, strict=True)
 
     print("ALL CONFIG COMPLETED\n " + "*" * 30)
     return config, data, net
@@ -315,7 +325,19 @@ def evaluate(net):
     dataLoader = DataLoader(testData)
     # data, label = data_one['data'], data_one['label']
 
-    currect_num = total_num = 0
+    '''
+    Threshold | acc: tongue | acc: 0/1/2
+    0.2 | 0.00 | 0.73
+    0.5 | 0.16 | 0.70
+    0.6 | 0.38 | 0.61
+    0.65| 0.47 | 0.56
+    0.7 | 0.56 | 0.50
+    0.8 | 0.72 | 0.37
+    '''
+    set_threshold = 0.65
+
+
+    correct_num = total_num = correct_tongue_num = 0
     labels = [0] * 4
     for testData in dataLoader:
         data, label = testData['data'], testData['label']
@@ -324,13 +346,18 @@ def evaluate(net):
         data.shape -> (1,22,1000,9) -> (batch_size, channel, time, filterBand)
         The FBCNet.forward need shape (batch_size, 1, channel, time, filterBand)
         '''
-        result = net.predict(data.unsqueeze(1))
+        result = net.predict(data.unsqueeze(1), threshold=set_threshold)
         print(f'id: {total_num}; result: {result}; true-label: {int(label)}')
         if result == int(label):
-            currect_num += 1
+            correct_num += 1
+            if int(label) == 3:
+                correct_tongue_num += 1
         total_num += 1
-    print(f"All labels: {labels}")
-    acc = currect_num / total_num
+
+    print(f"threshold={set_threshold}; log threshold={np.log(set_threshold)}")
+    print(f"All labels: {labels}; total num: {total_num}; correct num: {correct_num}")
+    print(f"Acc tongue: {correct_tongue_num/1296}; Acc others: {(correct_num-correct_tongue_num)/774}")
+    acc = correct_num / total_num
     return acc
 
 def generateTestData(data):
