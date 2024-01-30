@@ -38,7 +38,7 @@ def dictToCsv(filePath, dictToWrite):
         for key, value in dictToWrite.items():
             writer.writerow([key, value])
 
-def config(datasetId = None, network = None, nGPU = None, subTorun=None):
+def config(datasetId = None, network = None, nGPU = None, subTorun=None, train_type=None):
     '''
     Define all the configurations in this function.
     -------
@@ -83,7 +83,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     elif datasetId == 0:
         config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
-                                    'nClass': 2, 'doWeightNorm': True}
+                                    'nClass': 3, 'doWeightNorm': True}
     
     # Training related details    
     config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
@@ -195,7 +195,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
 
     #%% check and Load the data
     print('Data loading in progress')
-    config['train_type'] = 2
+    config['train_type'] = train_type
     fetchData(os.path.dirname(config['inDataPath']), datasetId) # Make sure that all the required data is present!
     data = eegDataset(dataPath = config['inDataPath'], dataLabelsPath= config['inLabelPath'], preloadData = config['preloadData'], transform= transform, train_type = config['train_type'])
     print('Data loading finished')
@@ -355,9 +355,8 @@ def train(config, data, initNet):
     # Time taken
     print("Time taken = "+ str(time.time()-start))
 
-        
+  
  
-
 
 if __name__ == '__main__':
 
@@ -384,5 +383,5 @@ if __name__ == '__main__':
 
     else:
         subTorun = None
-    config, data, net = config(datasetId, network, nGPU, subTorun)
+    config, data, net = config(datasetId, network, nGPU, subTorun, train_type=None)
     train(config, data, net)

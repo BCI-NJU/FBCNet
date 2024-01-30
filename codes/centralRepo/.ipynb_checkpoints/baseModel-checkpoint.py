@@ -162,6 +162,7 @@ class baseModel():
             labels = [l[2] for l in trainData.labels]
             classes = list(set(labels))
         print(f"All training labels: {classes}")
+        
         # Define the sampler
         if sampler is not None:
             sampler = self._findSampler(sampler)

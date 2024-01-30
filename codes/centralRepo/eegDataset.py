@@ -99,7 +99,13 @@ class eegDataset(Dataset):
             with open(self.dataLabelsPath, "r") as f:
                 eegReader = csv.reader(f, delimiter = ',')
                 for row in eegReader:
-                    self.labels.append(row)
+                    if self.train_type == None:
+                        if row[2] != '3':
+                            self.labels.append(row)
+                        else: 
+                            self.tongue_labels.append(row)
+                    else:
+                        self.labels.append(row)
 
                 # remove the first header row
                 del self.labels[0]

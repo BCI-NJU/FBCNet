@@ -6,6 +6,7 @@ All network architectures: FBCNet, EEGNet, DeepConvNet
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import sys
 import numpy as np
 current_module = sys.modules[__name__]
@@ -275,6 +276,8 @@ class FBCNet(nn.Module):
 
     def forward(self, x):
         x = torch.squeeze(x.permute((0,4,2,3,1)), dim = 4)
+        x = F.normalize(x, dim=1)
+        # print(x.shape)
         x = self.scb(x)
         x = x.reshape([*x.shape[0:2], self.strideFactor, int(x.shape[3]/self.strideFactor)])
         x = self.temporalLayer(x)
@@ -325,53 +328,3 @@ class FBCNet(nn.Module):
         else:
             # return raw softmax probability
             return log_softmax_output[0][0]
-
-#%% The FBCNet
-class FBCNet_old(nn.Module):
-    '''
-        Just a FBCSP like structure : Channel-wise convolution and then variance along the time axis
-        The data input is in a form of batch x 1 x chan x time x filterBand
-    '''
-    def SCB(self, m, nChan, nBands, doWeightNorm=True, *args, **kwargs):
-        '''
-        The spatial convolution block
-        m : number of spatial filters.
-        nBands: number of bands in the data
-        '''
-        return nn.Sequential(
-                Conv2dWithConstraint(nBands, m*nBands, (nChan, 1), groups= nBands,
-                                     max_norm = 2 , doWeightNorm = doWeightNorm,padding = 0),
-                nn.BatchNorm2d(m*nBands),
-                nn.ELU()
-                )
-
-    def LastBlock(self, inF, outF, doWeightNorm=True, *args, **kwargs):
-        return nn.Sequential(
-                LinearWithConstraint(inF, outF, max_norm = 0.5, doWeightNorm = doWeightNorm, *args, **kwargs),
-                nn.LogSoftmax(dim = 1))
-
-    def __init__(self, nChan, nTime, nClass = 2, nBands = 9, m = 4,
-                 temporalLayer = 'VarLayer', doWeightNorm = True, *args, **kwargs):
-        super(FBCNet_old, self).__init__()
-
-        self.nBands = nBands
-        self.m = m
-
-        # create all the parallel SCBc
-        self.scb = self.SCB(m, nChan, self.nBands, doWeightNorm = doWeightNorm)
-        
-        # Formulate the temporal aggregator
-        self.temporalLayer = current_module.__dict__[temporalLayer](dim = 3)
-
-        # The final fully connected layer
-        self.lastLayer = self.LastBlock(self.m*self.nBands, nClass, doWeightNorm = doWeightNorm)
-
-    def forward(self, x):
-        x = torch.squeeze(x.permute((0,4,2,3,1)), dim = 4)
-        x = self.scb(x)
-        x = self.temporalLayer(x)
-        x = torch.flatten(x, start_dim= 1)
-        x = self.lastLayer(x)
-        return x
-
-
