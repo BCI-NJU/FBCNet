@@ -408,7 +408,7 @@ def parseEEGMMIDBFile(subject, labelPath, epochWindow = [0,4], chans = [0, 6, 25
     # offset = 0 # we don't need offset here
     
     #load the edf file using MNE, should return a list of len 6
-    datapaths = mne.datasets.eegbci.load_data(subject=subject, runs = [4, 6, 8, 10, 12, 14], path='../../data/EEGMMIDB/originalData')
+    datapaths = mne.datasets.eegbci.load_data(subject=subject, runs = [4, 6, 8, 10, 12, 14], path='../FBCNet/data/EEGMMIDB/originalData')
     print(datapaths)
     raw_edfs = [mne.io.read_raw_edf(datapaths[i]) for i in range(len(datapaths))]
     for i in range(len(raw_edfs)):
@@ -462,7 +462,7 @@ def parseEEGMMIDBFile(subject, labelPath, epochWindow = [0,4], chans = [0, 6, 25
 
 # XXX: added by yunzinan
 def parseEEGMMIDBDataset(datasetPath, savePath, 
-                       epochWindow = [0,4], chans = [0, 6, 25, 27, 29, 31, 35, 37, 40, 41, 54, 60, 62], verbos = False):
+                       epochWindow = [0,4], chans = [0, 6, 25, 27, 29, 31, 35, 37, 40, 41, 46, 54, 60, 62], verbos = False):
     '''
     Parse the EEGMMIDB dataset in a MATLAB format that will be used in the next analysis
 
@@ -503,10 +503,11 @@ def parseEEGMMIDBDataset(datasetPath, savePath,
     #             epochWindow = epochWindow, chans = chans)
     #         savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
 
-    for i in range(1, 110): # enumerate the 109 subjects
+    for i in range(1, 101): # enumerate the 109 subjects, but I will just try the first 100, since 104 dataset has some problems
         if not os.path.exists(os.path.join(datasetPath, 'MNE-eegbci-data/files/eegmmidb/1.0.0/S' + str(i).zfill(3) 
-                                + '/S', str(i).zfill(3), 'R01.edf')):
-            raise ValueError("The EEGMMIDB original dataset doesn't exist")
+                                + '/S' + str(i).zfill(3) + 'R01.edf')):
+            raise ValueError("The EEGMMIDB original dataset doesn't exist", os.path.join(datasetPath, 'MNE-eegbci-data/files/eegmmidb/1.0.0/S' + str(i).zfill(3) 
+                                + '/S' + str(i).zfill(3) + 'R01.edf'))
         
         print("Processing subject No.:" + str(i))
         data = parseEEGMMIDBFile(i, None, epochWindow=epochWindow, chans=chans)

@@ -89,7 +89,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True, 'strideFactor': 5}
     elif datasetId == 3:
-        config['modelArguments'] = {'nChan': 12, 'nTime': 640, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 14, 'nTime': 640, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True, 'strideFactor': 4}
     
@@ -327,11 +327,11 @@ def spiltDataSet(trainDataToUse, testDataToUse, validationSet, data):
         # 将 PyTorch 张量转换为 NumPy 数组
         numpy_data_list = [{'data': item['data'].numpy(), 'label': item['label']} for item in testData]
         # 保存 NumPy 数组
-        np.save('TestDataKorea.npy', numpy_data_list)
+        np.save('TestDataEEGMMIDB.npy', numpy_data_list)
 
     # del finalTestData
 
-    loaded_data_list = np.load('TestData.npy', allow_pickle=True)
+    loaded_data_list = np.load('TestDataEEGMMIDB.npy', allow_pickle=True)
 
     return trainData, valData
 
