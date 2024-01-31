@@ -325,7 +325,7 @@ def parseNewKoreaFile(dataPath, labelPath, epochWindow = [0,4], chans = [2, 3, 5
 
 # XXX: added by yunzinan
 def parseNewKoreaDataset(datasetPath, savePath, 
-                       epochWindow = [0,4], chans = [2, 3, 5, 8, 14, 15, 17, 19, 25, 27, 29, 30], verbos = False):
+                       epochWindow = [0,4], chans = [0, 6, 25, 27, 29, 31, 35, 37, 40, 41, 46, 54, 60, 62], verbos = False):
     '''
     Parse the Deep BCI's dataset in a MATLAB format that will be used in the next analysis
 
@@ -379,6 +379,138 @@ def parseNewKoreaDataset(datasetPath, savePath,
         data = parseNewKoreaFile(os.path.join(datasetPath, "MI_" + str(i) + ".vhdr"), None, epochWindow=epochWindow, chans=chans)
         savemat(os.path.join(savePath, "MI_" + str(i).zfill(3) + '.mat'), data)
 
+
+# XXX: added by yunzinan
+def parseEEGMMIDBFile(subject, labelPath, epochWindow = [0,4], chans = [0, 6, 25, 27, 29, 31, 35, 37, 40, 41, 46, 54, 60, 62]):
+    '''
+    Parse the EEGMMIDB data file and return an epoched data. 
+
+    Parameters
+    ----------
+    subject : int (1-109)
+        number of the current subject, 1-indexed.
+    labelPath : str
+        path to the labels mat file. XXX: note by yunzinan, in new korea dataset, we don't get the label infos ahead
+    epochWindow : list, optional
+        time segment to extract in seconds. The default is [0,5], because each task would last for 5 sec here
+    chans  : list : channels to select from the data. we only need 12 channels out of 32 channels provided
+    
+    Returns
+    -------
+    data : an EEG structure with following fields:
+        x: 3d np array with epoched EEG data : chan x time x trials
+        y: 1d np array containing trial labels starting from 0
+        s: float, sampling frequency
+        c: list of channels - can be list of ints. 
+    '''
+    eventCode = [1, 2, 3] # start of the trial at t=0, 1: T0, 2: T1, 3: T2 
+    fs = 160 # so 4 sec will be 640 = 4 * 160 time points
+    # offset = 0 # we don't need offset here
+    
+    #load the edf file using MNE, should return a list of len 6
+    datapaths = mne.datasets.eegbci.load_data(subject=subject, runs = [4, 6, 8, 10, 12, 14], path='../../data/EEGMMIDB/originalData')
+    print(datapaths)
+    raw_edfs = [mne.io.read_raw_edf(datapaths[i]) for i in range(len(datapaths))]
+    for i in range(len(raw_edfs)):
+        raw_edfs[i].load_data()
+    edfs_event_labels = [mne.events_from_annotations(raw_edfs[i])[1] for i in range(len(raw_edfs))]
+
+    edf_events = [mne.events_from_annotations(raw_edfs[i])[0][:,[0,2]].tolist() 
+                                                for i in range(len(raw_edfs))]
+    eeg = [raw_edfs[i].get_data() for i in range(len(raw_edfs))]
+    
+    # drop channels
+    for i in range(len(raw_edfs)):
+        if chans is not None:
+            eeg[i] = eeg[i][chans,:]
+    
+    # Epoch the data of left-hand and right-hand MI: 
+    # - left-hand : in runs of 4, 8, 12 and annotation == 'T1' => eventCode = 2
+    # - right-hand: in runs of 4, 8, 12 and annotation == 'T2' => eventCdoe = 3
+    hands_runs = [0, 2, 4] # in runs
+    x_list = []
+    y_list = []
+    epochInterval = np.array(range(epochWindow[0] * fs, epochWindow[1] * fs))
+    for i in hands_runs:
+        events = [event for event in edf_events[i] if event[1] in [2, 3]]
+        y_cur = np.array([(i[1] - 1) for i in events]) # left: 1, right: 2
+        y_list.append(y_cur)
+        x_cur = np.stack([eeg[i][:, epochInterval+event[0]] for event in events], axis=2)
+        x_cur = x_cur * 1e6
+        x_list.append(x_cur)
+
+
+    # Epoch the data of both-feet MI: 6, 10, 14 and annotation == 'T2'
+    feet_runs = [1, 3, 5] # in runs
+    for i in feet_runs:
+        events = [event for event in edf_events[i] if event[1] == 3]
+        y_cur = np.array([3 for i in events])
+        y_list.append(y_cur)
+        x_cur = np.stack([eeg[i][:, epochInterval + event[0]] for event in events], axis=2)
+        x_cur = x_cur * 1e6 # pretty sure to do so, since the data is aournd 1e-6
+        x_list.append(x_cur)
+
+    # Concat the three types of data
+    x = np.concatenate(x_list, axis=2)
+    y = np.concatenate(y_list)
+
+    y = y - 1 # left: 0, right: 1, feet: 2
+    data = {'x': x, 'y': y, 'c': np.array(raw_edfs[0].info['ch_names'])[chans].tolist(), 's': fs}
+    return data
+
+
+
+# XXX: added by yunzinan
+def parseEEGMMIDBDataset(datasetPath, savePath, 
+                       epochWindow = [0,4], chans = [0, 6, 25, 27, 29, 31, 35, 37, 40, 41, 54, 60, 62], verbos = False):
+    '''
+    Parse the EEGMMIDB dataset in a MATLAB format that will be used in the next analysis
+
+    Parameters
+    ----------
+    datasetPath : str
+        Path to the EEGMMIDB original dataset in edf format.
+        using MNE's interface, will download first if doesn't have the corresponding data.
+    savePath : str
+        Path on where to save the epoched eeg data in a mat format.
+    epochWindow : list, optional
+        time segment to extract in seconds. The default is [0,4].
+    chans  : list : channels to select from the data, the default is the 14 channels that Emotiv Epocx has.
+
+    Returns
+    -------
+    None. 
+    The dataset will be saved at savePath.
+
+    '''
+    
+    print('Extracting the data into mat format: ')
+    if not os.path.exists(savePath):
+        os.makedirs(savePath)
+    print('Processed data be saved in folder : ' + savePath)
+    
+    # for iSubs, subs in enumerate(subAll):
+    #     for iSub, sub in enumerate(subs):
+    #         if not os.path.exists(os.path.join(datasetPath, sub+'.mat')):
+    #             raise ValueError('The BCI-IV-2a original dataset doesn\'t exist at path: ' + 
+    #                               os.path.join(datasetPath, sub+'.mat') + 
+    #                               ' Please download and copy the extracted dataset at the above path '+
+    #                               ' More details about how to download this data can be found in the Instructions.txt file')
+            
+    #         print('Processing subject No.: ' + subL[iSubs]+str(iSub+1).zfill(3))
+    #         data = parseBci42aFile(os.path.join(datasetPath, sub+'.gdf'), 
+    #             os.path.join(datasetPath, sub+'.mat'), 
+    #             epochWindow = epochWindow, chans = chans)
+    #         savemat(os.path.join(savePath, subL[iSubs]+str(iSub+1).zfill(3)+'.mat'), data)
+
+    for i in range(1, 110): # enumerate the 109 subjects
+        if not os.path.exists(os.path.join(datasetPath, 'MNE-eegbci-data/files/eegmmidb/1.0.0/S' + str(i).zfill(3) 
+                                + '/S', str(i).zfill(3), 'R01.edf')):
+            raise ValueError("The EEGMMIDB original dataset doesn't exist")
+        
+        print("Processing subject No.:" + str(i))
+        data = parseEEGMMIDBFile(i, None, epochWindow=epochWindow, chans=chans)
+        savemat(os.path.join(savePath, "MI_" + str(i).zfill(3) + '.mat'), data)
             
 
     
@@ -584,6 +716,7 @@ def fetchData(dataFolder, datasetId = 0):
             0 : bci42a data (default)
 			1 : korea data
             2 : new korea data (added by yunzinan) 
+            3 : EEGMMIDB data (added by yunzinan)
     Returns
     -------
     None.
@@ -614,6 +747,12 @@ def fetchData(dataFolder, datasetId = 0):
                     os.path.join(dataFolder, oDataFolder) + 
                     ' Please download and copy the extracted dataset at the above path' +
                     " More details you can mailto:shen.ouy03@gmail.com") 
+        elif datasetId == 3:
+            raise ValueError('The dataset doesn\'t exist at path: ' +
+                    os.path.join(dataFolder, oDataFolder) + 
+                    ' Please download and copy the extracted dataset at the above path' +
+                    " More details you can mailto:shen.ouy03@gmail.com") 
+
     else:
         oDataLen = len([name for name in os.listdir(os.path.join(dataFolder, oDataFolder)) 
                         if os.path.isfile(os.path.join(dataFolder, oDataFolder, name))])
@@ -633,6 +772,7 @@ def fetchData(dataFolder, datasetId = 0):
             parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
 
         # TODO: there should be a check about the newKorea dataset, but omitted for now. 
+        # TODO: there should be a check about the EEGMMIDB dataset, but omitted for now. 
             
    # Check if the processed mat data exists:
     if not os.path.exists(os.path.join(dataFolder, rawMatFolder)):
@@ -643,6 +783,8 @@ def fetchData(dataFolder, datasetId = 0):
             parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
         elif datasetId ==2:
             parseNewKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
+        elif datasetId ==3:
+            parseEEGMMIDBDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
 
     # Check if the processed python data exists:
     if not os.path.exists(os.path.join(dataFolder, rawPythonFolder, 'dataLabels.csv')):
@@ -652,7 +794,7 @@ def fetchData(dataFolder, datasetId = 0):
     # Check if the multi-view python data exists:
     if not os.path.exists(os.path.join(dataFolder, multiviewPythonFolder , 'dataLabels.csv')):
         print('Appears that the raw eegdataset data exists but its not converted to multi-view eegdataset yet. Starting this processing')
-        pythonToMultiviewPython( os.path.join(dataFolder, rawPythonFolder), os.path.join(dataFolder, multiviewPythonFolder))
+        pythonToMultiviewPython(os.path.join(dataFolder, rawPythonFolder), os.path.join(dataFolder, multiviewPythonFolder))
     
     print('All the data you need is present! ')
     return 1

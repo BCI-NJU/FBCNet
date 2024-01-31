@@ -61,7 +61,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
     
     # decide which data to operate on:
     # datasetId ->  0:BCI-IV-2a data,    1: Korea data 
-    datasets = ['bci42a', 'korea', 'newKorea']
+    datasets = ['bci42a', 'korea', 'newKorea', 'EEGMMIDB']
 
     #%% Define all the model and training related options here.
     config = {}
@@ -88,6 +88,10 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
         config['modelArguments'] = {'nChan': 12, 'nTime': 1250, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True, 'strideFactor': 5}
+    elif datasetId == 3:
+        config['modelArguments'] = {'nChan': 12, 'nTime': 640, 'dropoutP': 0.5,
+                                    'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
+                                    'nClass': 3, 'doWeightNorm': True, 'strideFactor': 4}
     
     # Training related details    
     config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
@@ -97,7 +101,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
             
     if datasetId ==0:
         config['modelTrainArguments']['classes'] = [0,1,2,3] # 4 class data
-    elif datasetId ==2:
+    elif datasetId ==2 or datasetId ==3:
         config['modelTrainArguments']['classes'] = [0,1,2] # 3 class data
 
     config['transformArguments'] = None

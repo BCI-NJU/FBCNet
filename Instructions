@@ -72,8 +72,9 @@ ho: a hold out analysis where session 1 data is used for training and session 2 
     Here:
         <datasetId>     : The id of the dataset to analyze: (0/1) 
                             0 : bci42a data (default)
-                            1 : korea data
-                            2: new korea data
+                            1 : korea data (deprecated, as it only has 2 tasks)
+                            2 : new korea data
+                            3 : EEGMMIDB
         <networkName>     : The Network to use for classification
                              'FBCNet' (default)/'deepConvNet'/'eegNet'
 
