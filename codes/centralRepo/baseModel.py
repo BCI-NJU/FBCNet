@@ -398,7 +398,8 @@ class baseModel():
                         earlyStopReached = True
                         print('Early stop reached now continuing with full set')
                         # Combine the train and validation dataset
-                        trainData.combineDataset(valData)
+                        # trainData.combineDataset(valData)
+                        trainData.combineDatasetDiff(valData)
 
                         # define new stop criteria which is the training loss.
                         monitors['epoch'] = 0
@@ -473,7 +474,7 @@ class baseModel():
 
                 # forward pass:
                 output = self.net(d['data'].unsqueeze(1).to(self.device))
-
+                
                 # calculate loss
                 loss = lossFn(output, d['label'].type(torch.LongTensor).to(self.device))
                 loss = loss/d['data'].shape[0]

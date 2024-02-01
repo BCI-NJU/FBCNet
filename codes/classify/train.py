@@ -81,13 +81,13 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
     elif datasetId == 0:
-        config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 14, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
-                                    'nClass': 2, 'doWeightNorm': True}
+                                    'nClass': 3, 'doWeightNorm': True}
     
     # Training related details    
-    config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
-                                                       'c2': {'NoDecrease': {'numEpochs' : 200, 'varName': 'valInacc'}} } }},
+    config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 200, 'varName' : 'epoch'}},
+                                                       'c2': {'NoDecrease': {'numEpochs' : 20, 'varName': 'valInacc'}} } }},
           'classes': [0,1], 'sampler' : 'RandomSampler', 'loadBestModel': True,
           'bestVarToCheck': 'valInacc', 'continueAfterEarlystop':True,'lr': 1e-3}
             
@@ -337,10 +337,21 @@ def train(config, data, initNet):
     
     start = time.time()
     
-    trainData, valData = spiltDataSet(config['trainDataToUse'], config['testDataToUse'], \
-                                                config['validationSet'], data)
+    # trainData, valData = spiltDataSet(config['trainDataToUse'], config['testDataToUse'], \
+    #                                             config['validationSet'], data)
+
+    # 训练集再分，训练集0.8，验证集0.2
+    valData = copy.deepcopy(data)
+    trainData = copy.deepcopy(data)
+    valData.createPartialDataset(
+        list(range(math.ceil(len(trainData)*(1-config['validationSet'])) , len(trainData)))
+        )
+    trainData.createPartialDataset(
+        list(range(0, math.ceil(len(trainData)*(1-config['validationSet']))))
+        )
+    print(f"train data length: {len(trainData)}")
+    print(f"val data length: {len(valData)}")
     
-    # D:\codes\BCI-VR\FBCNet\codes\netModels\2023-11-20--20-41-312\sub0\FBCNet_0
     model = baseModel(net=initNet, resultsSavePath=config['resultsOutPath'], modelSavePath=config['modelsOutPath'], batchSize= config['batchSize'], nGPU = nGPU)
     model.train(trainData, valData, **config['modelTrainArguments'])
     
@@ -384,4 +395,6 @@ if __name__ == '__main__':
     else:
         subTorun = None
     config, data, net = config(datasetId, network, nGPU, subTorun)
+    train_data_path = "./data/emotiv_data_120s/data/lyh_data_train_filtered.npy"
+    data = eegDataset(train_data_path, None)
     train(config, data, net)

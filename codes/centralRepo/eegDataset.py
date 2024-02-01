@@ -77,7 +77,7 @@ class eegDataset(Dataset):
 
         if self.dataLabelsPath == None:
             # load testData here
-            testData = np.load(self.dataPath, allow_pickle=True) # load TestData.npy
+            testData = np.load(self.dataPath, allow_pickle=True)
             # print(testData[0]['data'][21][0])
             if len(testData[0]['data'].shape) == 2:
                 # lyh data, need band-filter
@@ -99,7 +99,13 @@ class eegDataset(Dataset):
             with open(self.dataLabelsPath, "r") as f:
                 eegReader = csv.reader(f, delimiter = ',')
                 for row in eegReader:
-                    self.labels.append(row)
+                    if self.train_type == None:
+                        if row[2] != '3':
+                            self.labels.append(row)
+                        else: 
+                            self.tongue_labels.append(row)
+                    else:
+                        self.labels.append(row)
 
                 # remove the first header row
                 del self.labels[0]
@@ -170,6 +176,13 @@ class eegDataset(Dataset):
                     self.data.append(d)
             self.preloadData = True
     
+    def combineDatasetDiff(self, otherDataset):
+        '''
+        Combine two datasets from different files.
+        '''
+        self.labels.extend(otherDataset.labels)
+        self.data.extend(otherDataset.data)
+
     def combineDataset(self, otherDataset, loadNonLoadedData = False):
         '''
         Combine two datasets which were generated from the same dataset by splitting.

@@ -143,9 +143,9 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None, paramPa
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
     elif datasetId == 0:
-        config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 14, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
-                                    'nClass': 2, 'doWeightNorm': True}
+                                    'nClass': 3, 'doWeightNorm': True}
     
     # Training related details    
     config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
@@ -321,14 +321,14 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None, paramPa
     print("ALL CONFIG COMPLETED\n " + "*" * 30)
     return config, data, net
 
-def makeDataToEvaluate(test_data_path):
+def makeDataToEvaluate(test_data_path, trans=None):
     '''
     Make data to use in predict().
     data here is <eegDataset.eegDataset object>
     '''
 
     # test_data_path = 'data/bci42a/testData/TestData.npy'
-    test_dataset = eegDataset(test_data_path, None)
+    test_dataset = eegDataset(test_data_path, None, transform=trans)
     return test_dataset
 
     # subs = sorted(set([d[3] for d in data.labels]))
@@ -434,7 +434,7 @@ def evaluate_OvR(net_list, test_data_path):
     for i in range(len(confusion_matrix)):
         print(confusion_matrix[i])
 
-def evaluate(net, test_data_path):
+def evaluate(net, test_data_path, threshold=0.01):
     '''
     Evaluate the net with test_data_path.
     Calculate the prediction accuracy.
@@ -461,7 +461,7 @@ def evaluate(net, test_data_path):
     0.7 | 0.56 | 0.50
     0.8 | 0.72 | 0.37
     '''
-    set_threshold = 0.01
+    set_threshold = threshold
 
 
     correct_num = total_num = correct_tongue_num = 0
@@ -575,13 +575,14 @@ if __name__ == '__main__':
 
     else:
         subTorun = None
-    config, data, net = config(datasetId, network, nGPU, subTorun)
+    config, data, net = config(datasetId, network, nGPU, subTorun, 
+        paramPath='./output/bci42a/2024-02-01--14-27-541/FBCNet/best_model.pth')
 
-    # TODO(): use lyh data to test
-    use_LYH_data = False
+    use_LYH_data = True
     test_OvR = True
     # lyh_path = "data/lyh_data/lyh_data_filtered.npy"
-    lyh_path = "data/emotiv_data/data/lyh_data_filtered.npy"
+    lyh_path = "data/emotiv_data_120s/data/lyh_data_test_filtered.npy"
+    # lyh_path = "data/emotiv_data/data/lyh_data.npy"
     test_path = "TestData.npy"
     # test_path = "data/TestDataKorea.npy"
 
@@ -593,7 +594,7 @@ if __name__ == '__main__':
                                     ->  net.predict()  
     """
     if use_LYH_data:
-        evaluate(net, lyh_path)
+        evaluate(net, lyh_path, threshold=0.55)
     elif test_OvR:
         path0 = 'codes/netInitModels/best_model_OvR_0.pth'
         path1 = 'codes/netInitModels/best_model_OvR_1.pth'
@@ -612,4 +613,4 @@ if __name__ == '__main__':
         if not os.path.exists(test_path):
             generateTestData(data)
 
-        evaluate(net, test_path)
+        evaluate(net, test_path, threshold=0.5)
