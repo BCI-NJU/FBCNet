@@ -146,7 +146,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None, paramPa
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 2, 'doWeightNorm': True}
     elif datasetId == 0:
-        config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+        config['modelArguments'] = {'nChan': 14, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                                     'nClass': 3, 'doWeightNorm': True}
     
@@ -325,14 +325,14 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None, paramPa
     print("ALL CONFIG COMPLETED\n " + "*" * 30)
     return config, data, net
 
-def makeDataToEvaluate(test_data_path):
+def makeDataToEvaluate(test_data_path, trans=None):
     '''
     Make data to use in predict().
     data here is <eegDataset.eegDataset object>
     '''
 
     # test_data_path = 'data/bci42a/testData/TestData.npy'
-    test_dataset = eegDataset(test_data_path, None)
+    test_dataset = eegDataset(test_data_path, None, transform=trans)
     return test_dataset
 
     # subs = sorted(set([d[3] for d in data.labels]))
@@ -580,12 +580,14 @@ if __name__ == '__main__':
 
     else:
         subTorun = None
+
     config, data, net = config(datasetId, network, nGPU, subTorun, paramPath="./output/bci42a/normalization/FBCNet/best_model.pth")
     
     use_LYH_data = True
     test_OvR = False
     # lyh_path = "data/lyh_data/lyh_data_filtered.npy"
-    lyh_path = "data/emotiv_data/data/lyh_data_filtered.npy"
+    lyh_path = "data/emotiv_data_120s/data/lyh_data_test_filtered.npy"
+    # lyh_path = "data/emotiv_data/data/lyh_data.npy"
     test_path = "TestData.npy"
     # test_path = "data/TestDataKorea.npy"
 

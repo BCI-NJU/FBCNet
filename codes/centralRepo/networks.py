@@ -276,8 +276,8 @@ class FBCNet(nn.Module):
 
     def forward(self, x):
         x = torch.squeeze(x.permute((0,4,2,3,1)), dim = 4)
-        x = F.normalize(x, dim=1)
-        # print(x.shape)
+        # x = F.normalize(x, dim=1)
+
         x = self.scb(x)
         x = x.reshape([*x.shape[0:2], self.strideFactor, int(x.shape[3]/self.strideFactor)])
         x = self.temporalLayer(x)
@@ -328,3 +328,4 @@ class FBCNet(nn.Module):
         else:
             # return raw softmax probability
             return log_softmax_output[0][0]
+
