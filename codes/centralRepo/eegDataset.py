@@ -140,7 +140,7 @@ class eegDataset(Dataset):
             data['data'] = data['data'][self.selected_chans]
         
         
-        d = {'data': data['data'].T, 'label': data['label']}
+        d = {'data': data['data'].T.reshape(3, 125, -1), 'label': data['label']}
         
         return d
     

@@ -369,6 +369,7 @@ for epoch in range(num_epochs):
     # load a batch data of images
     for i, sample in enumerate(train_dataloader):
         inputs = sample['data'].to(device)
+        # print(inputs.shape)
         labels = sample['label'].to(device)
  
         optimizer.zero_grad()
