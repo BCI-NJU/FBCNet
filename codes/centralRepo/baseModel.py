@@ -474,7 +474,7 @@ class baseModel():
 
                 # forward pass:
                 output = self.net(d['data'].unsqueeze(1).to(self.device))
-                
+                # print(d['label'])
                 # calculate loss
                 loss = lossFn(output, d['label'].type(torch.LongTensor).to(self.device))
                 loss = loss/d['data'].shape[0]

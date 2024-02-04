@@ -321,6 +321,7 @@ class FBCNet(nn.Module):
         '''
         if not raw_value:
             max_value = torch.max(log_softmax_output)
+            print(max_value)
             if max_value > log_threshold:
                 return torch.argmax(log_softmax_output)
             else:

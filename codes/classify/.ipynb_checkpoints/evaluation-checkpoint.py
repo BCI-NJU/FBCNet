@@ -53,7 +53,7 @@ def initNet(config, nGPU, paramPath=None):
         paramPath: path of param to load
     '''
     assert(paramPath != None)
-    config['modelArguments'] = {'nChan': 22, 'nTime': 1000, 'dropoutP': 0.5,
+    config['modelArguments'] = {'nChan': 14, 'nTime': 1000, 'dropoutP': 0.5,
                             'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
                             'nClass': 2, 'doWeightNorm': True}
     
@@ -384,7 +384,7 @@ def get_real_result(result_list, threshold):
         return 3 # label of tongue or other non-sense EEG
 
 
-def evaluate_OvR(net_list, test_data_path):
+def evaluate_OvR(net_list, test_data_path, threshold=0.5):
     '''
     OvR mode:
     Evaluate the nets with test_data_path.
@@ -395,7 +395,7 @@ def evaluate_OvR(net_list, test_data_path):
     testData = makeDataToEvaluate(test_data_path)
     dataLoader = DataLoader(testData)
 
-    set_threshold = 0.3
+    set_threshold = threshold
     '''
     Threshold | acc: tongue | acc: 0/1/2 | acc: total
     0.01 | 0.00 | 0.76 | 0.28
@@ -581,14 +581,14 @@ if __name__ == '__main__':
     else:
         subTorun = None
 
-    config, data, net = config(datasetId, network, nGPU, subTorun, paramPath="./output/bci42a/normalization/FBCNet/best_model.pth")
+    paramPth = "./codes/netInitModels/best_model_lyh_3cls.pth"
+    config, data, net = config(datasetId, network, nGPU, subTorun, paramPath=paramPth)
     
-    use_LYH_data = True
-    test_OvR = False
-    # lyh_path = "data/lyh_data/lyh_data_filtered.npy"
-    lyh_path = "data/emotiv_data_120s/data/lyh_data_test_filtered.npy"
-    # lyh_path = "data/emotiv_data/data/lyh_data.npy"
-    test_path = "TestData.npy"
+    use_LYH_data = False
+    test_OvR = True
+    # lyh_path = "./data/emotiv_data/long_data/lyh_data_test_filtered.npy"
+    lyh_path = "./data/emotiv_data/120s_data/lyh_data_filtered.npy"
+    test_path = "./data/emotiv_data/120s_data/lyh_data_filtered.npy"
     # test_path = "data/TestDataKorea.npy"
 
     """
@@ -599,11 +599,15 @@ if __name__ == '__main__':
                                     ->  net.predict()  
     """
     if use_LYH_data:
-        evaluate(net, lyh_path, threshold=0.5)
+        print(f"Test data path: {lyh_path}")
+        evaluate(net, lyh_path, threshold=0.01)
     elif test_OvR:
-        path0 = 'codes/netInitModels/best_model_OvR_0.pth'
-        path1 = 'codes/netInitModels/best_model_OvR_1.pth'
-        path2 = 'codes/netInitModels/best_model_OvR_2.pth'
+        path0 = 'codes/netInitModels/lyh_OvR_0.pth'
+        path1 = 'codes/netInitModels/lyh_OvR_1.pth'
+        path2 = 'codes/netInitModels/lyh_OvR_2.pth'
+        # path0 = 'codes/netInitModels/lyh_OvR_0_norm.pth'
+        # path1 = 'codes/netInitModels/lyh_OvR_1_norm.pth'
+        # path2 = 'codes/netInitModels/lyh_OvR_2_norm.pth'
         net_0 = initNet(config, nGPU, path0)
         net_1 = initNet(config, nGPU, path1)
         net_2 = initNet(config, nGPU, path2)
@@ -612,7 +616,7 @@ if __name__ == '__main__':
         if not os.path.exists(test_path):
             generateTestData(data)
 
-        evaluate_OvR(net_list, test_path)
+        evaluate_OvR(net_list, test_path, threshold=0.45)
     else:
         # generate data if not exist
         if not os.path.exists(test_path):

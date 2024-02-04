@@ -89,8 +89,14 @@ class eegDataset(Dataset):
                     self.labels.append(int(d['label']))
             else:
                 self.data = testData
+                if self.train_type != None:
+                    # 0 means this is the type we want
+                    # 1 means other types
+                    for d in self.data:
+                        d['label'] = 0 if self.train_type == int(d['label']) else 1
                 self.preloadData = True
                 self.labels = [int(x['label']) for x in self.data]
+                # print(self.labels)
                 print("Test data eegDataset finished!")
         else:
             # The original codes: load train data
@@ -139,10 +145,7 @@ class eegDataset(Dataset):
                     data = self.transform(data) 
                 
         d = {'data': data['data'], 'label': data['label']}
-        if self.train_type != None:
-            # 0 means this is the type we want
-            # 1 means other types
-            d['label'] = 0 if self.train_type == d['label'] else 1
+
         return d
     
     def createPartialDataset(self, idx, loadNonLoadedData = False):

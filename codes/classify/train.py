@@ -83,7 +83,7 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None, train_t
     elif datasetId == 0:
         config['modelArguments'] = {'nChan': 14, 'nTime': 1000, 'dropoutP': 0.5,
                                     'nBands':9, 'm' : 32, 'temporalLayer': 'LogVarLayer',
-                                    'nClass': 3, 'doWeightNorm': True}
+                                    'nClass': 2, 'doWeightNorm': True}
     
     # Training related details    
     config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 200, 'varName' : 'epoch'}},
@@ -395,7 +395,7 @@ if __name__ == '__main__':
     else:
         subTorun = None
         
-    config, data, net = config(datasetId, network, nGPU, subTorun, train_type=None)
-    train_data_path = "./data/emotiv_data_120s/data/lyh_data_train_filtered.npy"
-    data = eegDataset(train_data_path, None)
+    config, data, net = config(datasetId, network, nGPU, subTorun)
+    train_data_path = "./data/emotiv_data/long_data/lyh_data_train_filtered.npy"
+    data = eegDataset(train_data_path, None, train_type=2)
     train(config, data, net)
