@@ -314,12 +314,12 @@ def spiltDataSet(trainDataToUse, testDataToUse, validationSet, data):
     # print(finalTestData[0])
     # print(finalTestData[-1])
     
-    # 将测试集存成.npy文件
-    if not os.path.exists('TestData.npy'):
-        # 将 PyTorch 张量转换为 NumPy 数组
-        numpy_data_list = [{'data': item['data'].numpy(), 'label': item['label']} for item in finalTestData]
-        # 保存 NumPy 数组
-        np.save('TestData.npy', numpy_data_list)
+    # # 将测试集存成.npy文件
+    # if not os.path.exists('TestData.npy'):
+    #     # 将 PyTorch 张量转换为 NumPy 数组
+    #     numpy_data_list = [{'data': item['data'].numpy(), 'label': item['label']} for item in finalTestData]
+    #     # 保存 NumPy 数组
+    #     np.save('TestData.npy', numpy_data_list)
 
     del finalTestData
 

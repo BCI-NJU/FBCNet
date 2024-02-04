@@ -361,8 +361,10 @@ def matToPython(datasetPath, savePath, isFiltered = False):
         writer = csv.writer(f)
         writer.writerows(dataInfo)
 
+
+# [4,8],[8,12],[12,16],[16,20],[20,24],[24,28],[28,32],[32,36],[36,40]
 def pythonToMultiviewPython(datasetPath, savePath,
-                            filterTransform = {'filterBank':{'filtBank':[[4,8],[8,12],[12,16],[16,20],[20,24],[24,28],[28,32],[32,36],[36,40]],'fs':250, 'filtType':'filter'}}):
+                            filterTransform = {'filterBank':{'filtBank':[[4, 16],[16, 28],[28, 40]],'fs':250, 'filtType':'filter'}}):
     '''
     Convert the raw EEG data into its multi-view representation using a filter-bank
     specified with filterTransform.

@@ -140,7 +140,7 @@ class eegDataset(Dataset):
             data['data'] = data['data'][self.selected_chans]
         
         
-        d = {'data': data['data'], 'label': data['label']}
+        d = {'data': data['data'].T, 'label': data['label']}
         
         return d
     
