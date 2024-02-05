@@ -17,6 +17,7 @@ import resampy
 import shutil
 import urllib.request as request
 from contextlib import closing
+import random
 
 masterPath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(1, os.path.join(masterPath, 'centralRepo')) # To load all the relevant files
@@ -454,8 +455,18 @@ def parseEEGMMIDBFile(subject, labelPath, epochWindow = [0,4], chans = [0, 6, 25
     x = np.concatenate(x_list, axis=2)
     y = np.concatenate(y_list)
 
+    # XXX: one more thing! shuffle the dataset
+    random_lst = [i for i in range(x.shape[2])]
+    random.shuffle(random_lst)
+    transposed_x = np.transpose(x, (2, 1, 0))
+    shuffled_x = transposed_x[random_lst]
+    x_shuff = np.transpose(shuffled_x, (2, 1, 0))
+
     y = y - 1 # left: 0, right: 1, feet: 2
-    data = {'x': x, 'y': y, 'c': np.array(raw_edfs[0].info['ch_names'])[chans].tolist(), 's': fs}
+    y_shuff = y[random_lst]
+
+    data = {'x': x_shuff, 'y': y_shuff, 'c': np.array(raw_edfs[0].info['ch_names'])[chans].tolist(), 's': fs}
+    # data = {'x': x, 'y': y, 'c': np.array(raw_edfs[0].info['ch_names'])[chans].tolist(), 's': fs} # BUG: you should remember to shuffle the trials!
     return data
 
 

@@ -98,6 +98,12 @@ def config(datasetId = None, network = None, nGPU = None, subTorun=None):
                                                        'c2': {'NoDecrease': {'numEpochs' : 200, 'varName': 'valInacc'}} } }},
           'classes': [0,1], 'sampler' : 'RandomSampler', 'loadBestModel': True,
           'bestVarToCheck': 'valInacc', 'continueAfterEarlystop':True,'lr': 1e-3}
+
+    # config['modelTrainArguments'] = {'stopCondi':  {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName' : 'epoch'}},
+    #                                                    'c2': {'NoDecrease': {'numEpochs' : 200, 'varName': 'valInacc'}} } }},
+    #       'classes': [0,1], 'sampler' : None, 'loadBestModel': True,
+    #       'bestVarToCheck': 'valInacc', 'continueAfterEarlystop':False,'lr': 1e-3}
+    
             
     if datasetId ==0:
         config['modelTrainArguments']['classes'] = [0,1,2,3] # 4 class data
